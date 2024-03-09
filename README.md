@@ -1,4 +1,4 @@
-# AI-Ops-fullfil
+# AIOps-Practice
 > Practice and experience collection of AI Ops - Operational AI and Machine Learning Utilities
 
 > This repository collect some experiences of AI Ops topic, including classification, anti-fraud, anomaly detection, 
