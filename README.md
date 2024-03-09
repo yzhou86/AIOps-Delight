@@ -1,7 +1,8 @@
 # AI-Ops-fullfil
 > Practice and experience collection of AI Ops - Operational AI and Machine Learning Utilities
 
-> This repository collect some gist of codes including experiences of AI Ops topic. 
+> This repository collect some experiences of AI Ops topic, including classification, anti-fraud, anomaly detection, 
+time-series prediction, service logs analysis, LLM langchain use case and ML/AL databases and platform.
 Most of them are useful in enterprise operation teams to handle their daily work cases using AI and ML mechanisms.
 There are also some useful code gists, including both Python and Java for a reference.
 
