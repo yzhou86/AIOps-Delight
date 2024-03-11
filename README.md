@@ -8,7 +8,7 @@ This repository collected some experiences of AI Ops topic, including:
 - Time-series prediction
 - Service logs analysis using NLP
 - LLM langchain use cases 
-- ML/AL databases and platforms
+- ML/AI databases and platforms
 
 Most of them are useful in enterprise operation teams to handle their daily work cases using AI and ML mechanisms.
 There are also some useful code gists, including both Python and Java for a reference.
@@ -113,8 +113,8 @@ Also, we can build **vector store** persisting private knowledge documents and c
 
 ![](llm-langchain/llm-vector-store.png)
 
-## AL ML Databases and Platforms
-> When data are in databases or big data lakehouse, how do we connect data and ML/AL more tightly?
+## ML/AI Databases and Platforms
+> When data are in databases or big data lakehouse, how do we connect data and ML/AI more tightly?
 
 There are AL/ML databases and platforms to leverage.
 
