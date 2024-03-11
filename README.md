@@ -1,4 +1,4 @@
-# AIOps-Practice
+# AIOps-Delight
 > Practice and experience collection of AI Ops - Operational AI and Machine Learning Utilities
 
 This repository collected some experiences of AI Ops topic, including:
