@@ -51,24 +51,18 @@ def plot_anomaly(df):
     ax.view_init(600, 600)
     plt.show()
 
-def add_real_fraud_data(df):
-    new_rows = [
-        {'id': 1, 't': 1, 'counts': 4,'cost': 0.518460, 'suspicion': 0.159421, 'risk': 0.137071, 'no_answered': 0,'actual_interval': 1, 'duration_avg': 1, 'duration_sigma': 1},
-        {'id': 2, 't': 2, 'counts': 65,'cost': 0.00000, 'suspicion': 3.000897, 'risk': 0.255852, 'no_answered': 0,'actual_interval': 2, 'duration_avg': 2, 'duration_sigma': 2},
-        {'id': 3, 't': 3, 'counts': 43,'cost': 0.049200, 'suspicion': 0.062046, 'risk': 0.018000, 'no_answered': 0,'actual_interval': 3, 'duration_avg': 3, 'duration_sigma': 3},
-        {'id': 4, 't': 4, 'counts': 5, 'cost': 5.435768, 'suspicion': 0.083606, 'risk': 0.439550, 'no_answered': 0, 'actual_interval': 3,
-         'duration_avg': 3, 'duration_sigma': 3},
-        {'id': 5, 't': 5, 'counts': 5, 'cost': 0.354373, 'suspicion': 0.112246, 'risk': 0.142775, 'no_answered': 0, 'actual_interval': 3,
-         'duration_avg': 3, 'duration_sigma': 3}
 
-    ]
-    for row in new_rows:
-        df = df.append(row, ignore_index=True)
-    return df
+
+def query_raw_data():
+    return []
+
+
+def query_data_mapping():
+    return []
 
 def abnormal_detection_3D(start_hour=1, end_hour=0):
     print('start anomaly detection:', start_hour, end_hour)
-    data = query_calls_3D(start_hour=start_hour, end_hour=end_hour, minutes_bucket=15, identifier='report_identifiers_commonIdentityUserId', limit=100000)
+    data = query_raw_data()
     df = pd.DataFrame(data)
     df = df.replace({'NaN': 0})
     df = df.replace({'Infinity': 0})
@@ -97,9 +91,7 @@ def abnormal_detection_3D(start_hour=1, end_hour=0):
     abnormal_df = abnormal_df.loc[abnormal_df.cost_sum > _MIN_COST_]
     for index, row in abnormal_df.iterrows():
         if row['id'] not in abnormal_detect_cache:
-            call_in_out = query_call_in_call_out_map_by_id_2('report_identifiers_commonIdentityUserId', row['id'],
-                                                             row['t'],
-                                                             20)
+            call_in_out = query_data_mapping()
             in_out_dict = {}
             for i in call_in_out:
                 in_out_dict[
@@ -117,12 +109,19 @@ def abnormal_detection_3D(start_hour=1, end_hour=0):
     message = 'Anomaly detected:\n```\n' + tabulate(abnormal_df, headers='keys', tablefmt='psql',
                                  showindex=False) + '\n```'
     if len(abnormal_df) > 0:
-        send_to_teams(message, 'Y2lzY29zcGFyazovL3VzL1JPT00vOWY2YjA2MDAtN2Y3MC0xMWVlLTg3MGEtMGRlY2Y4NzU0NTNj')
+        send_msg()
         abnormal_df_list = abnormal_df.to_dict(orient='records')
-        send_kafka(abnormal_df_list, 'anomaly')
+        send_kafka()
 
 
-def verify_cpm_data():
+def send_msg():
+    pass
+
+
+def send_kafka():
+    pass
+
+def verify_history_data():
     df = pd.read_csv("data/training/final_training_dataset.csv")
     h2o.init()
     predictors = ["cost_sum", "call_counts", "suspicion_sum", "risk_sum"]
@@ -148,4 +147,4 @@ def verify_cpm_data():
 
 
 if __name__ == '__main__':
-    verify_cpm_data()
+    verify_history_data()
