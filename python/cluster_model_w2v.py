@@ -6,7 +6,6 @@ import joblib
 import pandas as pd
 from wordcloud import wordcloud
 
-from clustering import get_all_docs
 import pickle
 from gensim.models import word2vec
 import numpy as np
@@ -18,6 +17,10 @@ from collections import defaultdict
 _WORD2VEC_MODEL_PATH = 'clustering/word2vec.model'
 _WORD2VEC_KMEANS_PATH = 'clustering/word2vec_kmeans.pkl'
 _WORD2VEC_KEYWORDS_PATH = 'clustering/word2vec_keywords.pkl'
+
+
+def get_all_docs():
+    return []
 
 
 def generate_word_cloud():

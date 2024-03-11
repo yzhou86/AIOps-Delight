@@ -3,8 +3,11 @@ import re
 import joblib
 from wordcloud import wordcloud
 
-from clustering import get_all_docs
-from clustering.MyKmeans import MyKmeans
+import cluster_kmeans
+
+
+def get_all_docs():
+    return []
 
 def generate_word_cloud():
     all_docs = get_all_docs.get_all_docs(True)
@@ -24,7 +27,7 @@ def training_model(get_docs_from_local):
     print('start to train model')
     data = get_all_docs.query_data(get_docs_from_local)
     print('train model - read data complete')
-    MyKmeans(500, data)
+    cluster_kmeans.KmeansClusterClass(500, data)
 
 
 def predict(x, cluster_n, raw_message):

@@ -6,8 +6,17 @@ import pandas as pd
 from statsforecast import StatsForecast
 from statsforecast.models import AutoARIMA
 
-from job_resource_collect import read_job_history_usage_flink, read_job_history_usage_spark_exec, send_kafka
 
+def read_job_history_usage_flink(env):
+    return []
+
+
+def read_job_history_usage_spark_exec(env):
+    return []
+
+
+def send_kafka(messages):
+    pass
 
 def predict_forecast(Y_df, freq, season_length, horizon):
     models = [

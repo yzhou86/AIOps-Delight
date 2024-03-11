@@ -7,13 +7,14 @@ from pandas import DataFrame
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import Pipeline
-
-from clustering import sentence_vec
-from kafka_sender import send_kafka
+import sentence_vec
 from cluster_category_util import cluster_category
 
 
-class MyKmeans:
+def send_kafka(messages):
+    pass
+
+class KmeansClusterClass:
     def __init__(self, model_n, data):
         self.model_n = model_n
         self.all_docs = data
