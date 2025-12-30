@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语单词配对游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .score, .timer {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card.selected {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .card.matched {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            cursor: default;
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #start-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        #restart-btn {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .game-over-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .game-over h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .game-over p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>英语单词配对游戏</h1>
+        <div class="game-info">
+            <div class="score">得分: <span id="score">0</span></div>
+            <div class="timer">时间: <span id="timer">0</span>秒</div>
+        </div>
+        <div class="cards-container" id="cards-container"></div>
+        <div class="controls">
+            <button id="start-btn">开始游戏</button>
+            <button id="restart-btn" class="hidden">重新开始</button>
+        </div>
+    </div>
+
+    <div class="game-over hidden" id="game-over">
+        <div class="game-over-content">
+            <h2>游戏结束！</h2>
+            <p>你的得分: <span id="final-score">0</span></p>
+            <p>用时: <span id="final-time">0</span>秒</p>
+            <button id="play-again">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        // 单词库
+        const wordPairs = [
+            { english: 'apple', chinese: '苹果' },
+            { english: 'banana', chinese: '香蕉' },
+            { english: 'cat', chinese: '猫' },
+            { english: 'dog', chinese: '狗' },
+            { english: 'elephant', chinese: '大象' },
+            { english: 'fish', chinese: '鱼' },
+            { english: 'grape', chinese: '葡萄' },
+            { english: 'house', chinese: '房子' },
+            { english: 'ice cream', chinese: '冰淇淋' },
+            { english: 'juice', chinese: '果汁' },
+            { english: 'kite', chinese: '风筝' },
+            { english: 'lion', chinese: '狮子' },
+            { english: 'moon', chinese: '月亮' },
+            { english: 'nest', chinese: '鸟巢' },
+            { english: 'orange', chinese: '橙子' },
+            { english: 'penguin', chinese: '企鹅' },
+            { english: 'queen', chinese: '女王' },
+            { english: 'rabbit', chinese: '兔子' },
+            { english: 'sun', chinese: '太阳' },
+            { english: 'tree', chinese: '树' },
+            { english: 'ambition', chinese: '野心' },
+            { english: 'brilliant', chinese: '杰出的' },
+            { english: 'courage', chinese: '勇气' },
+            { english: 'diligence', chinese: '勤奋' },
+            { english: 'elegant', chinese: '优雅的' },
+            { english: 'fortune', chinese: '命运' },
+            { english: 'generous', chinese: '慷慨的' },
+            { english: 'harmony', chinese: '和谐' },
+            { english: 'innovation', chinese: '创新' },
+            { english: 'justice', chinese: '正义' },
+            { english: 'knowledge', chinese: '知识' },
+            { english: 'loyalty', chinese: '忠诚' },
+            { english: 'magnificent', chinese: '壮丽的' },
+            { english: 'noble', chinese: '高贵的' },
+            { english: 'optimistic', chinese: '乐观的' },
+            { english: 'patience', chinese: '耐心' },
+            { english: 'quality', chinese: '质量' },
+            { english: 'responsibility', chinese: '责任' },
+            { english: 'sincere', chinese: '真诚的' },
+            { english: 'talent', chinese: '天赋' },
+            { english: 'unity', chinese: '团结' },
+            { english: 'virtue', chinese: '美德' },
+            { english: 'wisdom', chinese: '智慧' },
+            { english: 'xenophobia', chinese: '排外' },
+            { english: 'youthful', chinese: '年轻的' },
+            { english: 'zealous', chinese: '热心的' },
+            { english: 'abandon', chinese: '放弃' },
+            { english: 'blossom', chinese: '开花' },
+            { english: 'cherish', chinese: '珍惜' },
+            { english: 'dazzle', chinese: '耀眼' },
+            { english: 'echo', chinese: '回声' },
+            { english: 'fascinate', chinese: '迷住' },
+            { english: 'glorious', chinese: '光荣的' },
+            { english: 'humble', chinese: '谦逊的' },
+            { english: 'inspire', chinese: '启发' },
+            { english: 'jubilant', chinese: '欢欣的' },
+            { english: 'keen', chinese: '敏锐的' },
+            { english: 'luminous', chinese: '发光的' },
+            { english: 'majestic', chinese: '雄伟的' },
+            { english: 'notable', chinese: '显著的' },
+            { english: 'pioneer', chinese: '先锋' },
+            { english: 'radiant', chinese: '光芒四射的' },
+            { english: 'serene', chinese: '宁静的' },
+            { english: 'thrive', chinese: '繁荣' },
+            { english: 'unique', chinese: '独特的' },
+            { english: 'vibrant', chinese: '充满活力的' },
+            { english: 'whisper', chinese: '低语' },
+            { english: 'zest', chinese: '热情' }
+        ];
+
+        // 游戏状态
+        let gameStarted = false;
+        let score = 0;
+        let time = 0;
+        let timerInterval = null;
+        let selectedCards = [];
+        let matchedPairs = 0;
+        let totalPairs = 0;
+        let cards = [];
+
+        // DOM元素
+        const cardsContainer = document.getElementById('cards-container');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const gameOverElement = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
+        const finalTimeElement = document.getElementById('final-time');
+        const playAgainBtn = document.getElementById('play-again');
+
+        // 初始化游戏
+        function initGame() {
+            // 重置游戏状态
+            score = 0;
+            time = 0;
+            selectedCards = [];
+            matchedPairs = 0;
+            gameStarted = false;
+            
+            // 更新显示
+            scoreElement.textContent = score;
+            timerElement.textContent = time;
+            
+            // 隐藏重新开始按钮
+            restartBtn.classList.add('hidden');
+            startBtn.classList.remove('hidden');
+            
+            // 清空卡片容器
+            cardsContainer.innerHTML = '';
+            
+            // 停止计时器
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // 隐藏游戏结束界面
+            gameOverElement.classList.add('hidden');
+        }
+
+        // 开始游戏
+        function startGame() {
+            gameStarted = true;
+            
+            // 隐藏开始按钮，显示重新开始按钮
+            startBtn.classList.add('hidden');
+            restartBtn.classList.remove('hidden');
+            
+            // 随机选择15对单词
+            const selectedPairs = shuffleArray([...wordPairs]).slice(0, 15);
+            totalPairs = selectedPairs.length;
+            
+            // 创建所有卡片
+            cards = [];
+            selectedPairs.forEach(pair => {
+                cards.push({ text: pair.english, type: 'english', matchId: pair.chinese });
+                cards.push({ text: pair.chinese, type: 'chinese', matchId: pair.english });
+            });
+            
+            // 打乱卡片顺序
+            cards = shuffleArray(cards);
+            
+            // 渲染卡片
+            renderCards();
+            
+            // 开始计时
+            startTimer();
+        }
+
+        // 渲染卡片
+        function renderCards() {
+            cardsContainer.innerHTML = '';
+            
+            cards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.className = 'card';
+                cardElement.textContent = card.text;
+                cardElement.dataset.index = index;
+                cardElement.addEventListener('click', () => handleCardClick(index));
+                cardsContainer.appendChild(cardElement);
+            });
+        }
+
+        // 处理卡片点击
+        function handleCardClick(index) {
+            if (!gameStarted) return;
+            
+            const card = cards[index];
+            const cardElement = cardsContainer.children[index];
+            
+            // 如果卡片已经匹配或已选中，不做处理
+            if (card.matched || card.selected) return;
+            
+            // 如果已经选中了两张卡片，不做处理
+            if (selectedCards.length >= 2) return;
+            
+            // 选中卡片
+            card.selected = true;
+            cardElement.classList.add('selected');
+            selectedCards.push(index);
+            
+            // 如果选中了两张卡片，检查是否匹配
+            if (selectedCards.length === 2) {
+                setTimeout(() => checkMatch(), 500);
+            }
+        }
+
+        // 检查匹配
+        function checkMatch() {
+            const [index1, index2] = selectedCards;
+            const card1 = cards[index1];
+            const card2 = cards[index2];
+            const cardElement1 = cardsContainer.children[index1];
+            const cardElement2 = cardsContainer.children[index2];
+            
+            // 检查是否匹配
+            if (card1.matchId === card2.text && card1.type !== card2.type) {
+                // 匹配成功
+                card1.matched = true;
+                card2.matched = true;
+                cardElement1.classList.add('matched');
+                cardElement2.classList.add('matched');
+                cardElement1.classList.remove('selected');
+                cardElement2.classList.remove('selected');
+                
+                // 增加得分
+                score += 10;
+                scoreElement.textContent = score;
+                
+                // 增加匹配对数
+                matchedPairs++;
+                
+                // 检查游戏是否结束
+                if (matchedPairs === totalPairs) {
+                    endGame();
+                }
+            } else {
+                // 匹配失败
+                card1.selected = false;
+                card2.selected = false;
+                cardElement1.classList.remove('selected');
+                cardElement2.classList.remove('selected');
+            }
+            
+            // 重置选中状态
+            selectedCards = [];
+        }
+
+        // 开始计时
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                time++;
+                timerElement.textContent = time;
+            }, 1000);
+        }
+
+        // 结束游戏
+        function endGame() {
+            gameStarted = false;
+            
+            // 停止计时
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            
+            // 显示游戏结束界面
+            finalScoreElement.textContent = score;
+            finalTimeElement.textContent = time;
+            gameOverElement.classList.remove('hidden');
+        }
+
+        // 打乱数组
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        // 事件监听器
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', initGame);
+        playAgainBtn.addEventListener('click', () => {
+            initGame();
+            startGame();
+        });
+
+        // 初始化游戏
+        initGame();
+    </script>
+</body>
+</html>

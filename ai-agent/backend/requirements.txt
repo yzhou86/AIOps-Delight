@@ -1,0 +1,5 @@
+flask
+langchain
+alibabacloud-bailian20230601
+langchain_community
+flask-cors
