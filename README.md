@@ -1,4 +1,4 @@
-# AIOps Delight
+# AIOps Delight Copilot
 
 AI-first data analysis workspace for AIOps datasets.
 
