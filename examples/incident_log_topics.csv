@@ -1,0 +1,41 @@
+incident_id,service,severity,incident_summary,resolution_hint,owner_team,duration_minutes
+INC-1001,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,payments,40
+INC-1002,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,edge,44
+INC-1003,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,data,64
+INC-1004,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,platform,68
+INC-1005,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,payments,80
+INC-1006,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,edge,100
+INC-1007,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,data,20
+INC-1008,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,platform,40
+INC-1009,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,payments,44
+INC-1010,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,edge,56
+INC-1011,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,data,76
+INC-1012,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,platform,80
+INC-1013,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,payments,100
+INC-1014,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,edge,20
+INC-1015,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,data,32
+INC-1016,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,platform,52
+INC-1017,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,payments,56
+INC-1018,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,edge,76
+INC-1019,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,data,80
+INC-1020,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,platform,92
+INC-1021,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,payments,28
+INC-1022,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,edge,32
+INC-1023,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,data,52
+INC-1024,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,platform,56
+INC-1025,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,payments,68
+INC-1026,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,edge,88
+INC-1027,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,data,92
+INC-1028,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,platform,28
+INC-1029,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,payments,32
+INC-1030,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,edge,44
+INC-1031,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,data,64
+INC-1032,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,platform,68
+INC-1033,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,payments,88
+INC-1034,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,edge,92
+INC-1035,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,data,20
+INC-1036,orders-db,P1,Database lock timeout caused checkout retries and elevated queue depth.,Tune transaction retry policy and investigate blocking writes.,platform,40
+INC-1037,billing-worker,P2,Java heap pressure increased garbage collection pauses during invoice generation.,Increase heap size and review object retention in batch job.,payments,44
+INC-1038,edge-proxy,P1,Network packet loss between edge proxy and origin increased 5xx errors.,Fail traffic away from unstable route and engage provider.,edge,64
+INC-1039,catalog-api,P2,Cache stampede after key eviction created a burst of backend reads.,Add jitter to TTLs and warm popular catalog entries.,data,68
+INC-1040,analytics-etl,P3,Disk saturation slowed ETL checkpoints and delayed downstream jobs.,Rebalance storage and reduce temporary file churn.,platform,80

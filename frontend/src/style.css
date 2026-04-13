@@ -1,0 +1,89 @@
+:root {
+  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #10231c;
+  background:
+    radial-gradient(circle at top left, rgba(255, 188, 94, 0.24), transparent 30%),
+    radial-gradient(circle at top right, rgba(44, 133, 103, 0.14), transparent 30%),
+    linear-gradient(180deg, #f8efe1 0%, #f1e6d5 44%, #ece0d1 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --ink: #10231c;
+  --muted: #5d6d66;
+  --panel: rgba(255, 251, 243, 0.88);
+  --panel-strong: #fffaf0;
+  --line: rgba(16, 35, 28, 0.12);
+  --accent: #db6d45;
+  --accent-strong: #be4f2a;
+  --secondary: #2c8f6b;
+  --shadow: 0 24px 60px rgba(76, 58, 31, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  background: transparent;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(16, 35, 28, 0.08);
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(16, 35, 28, 0.16);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
