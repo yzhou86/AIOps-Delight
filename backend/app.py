@@ -1,6 +1,8 @@
 import os
 import uuid
 from pathlib import Path
+import json
+import urllib.request
 
 from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
@@ -46,6 +48,10 @@ def frontend_not_ready_response():
     )
 
 
+def qianfan_bearer_token():
+    return os.getenv("QIANFAN_BEARER_TOKEN", "").strip()
+
+
 @app.get("/api/health")
 def health():
     return jsonify({"status": "ok"})
@@ -54,6 +60,46 @@ def health():
 @app.get("/api/tools")
 def get_tools():
     return jsonify({"tools": serialize_tool_catalog()})
+
+
+@app.post("/api/news-search")
+def proxy_news_search():
+    payload = request.get_json(silent=True) or {}
+    keyword = (payload.get("keyword") or "").strip()
+    if not keyword:
+        return error_response("Keyword is required.")
+
+    bearer_token = qianfan_bearer_token()
+    if not bearer_token:
+        return error_response(
+            "QIANFAN_BEARER_TOKEN is not configured in the OS environment.",
+            500,
+        )
+
+    search_url = "https://qianfan.baidubce.com/v2/ai_search/web_search"
+    request_body = {
+        "messages": [{"role": "user", "content": keyword}],
+        "edition": "standard",
+        "search_source": "baidu_search_v2",
+        "search_recency_filter": "week",
+    }
+    data = json.dumps(request_body).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {bearer_token}",
+    }
+
+    try:
+        req = urllib.request.Request(search_url, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(req) as response:
+            response_body = response.read().decode("utf-8")
+            return app.response_class(
+                response=response_body,
+                status=response.status,
+                mimetype="application/json",
+            )
+    except Exception as exc:
+        return error_response(f"News search proxy failed: {exc}", 502)
 
 
 @app.post("/api/datasets/inspect")

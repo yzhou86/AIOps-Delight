@@ -272,29 +272,12 @@
             results.innerHTML = '';
 
             try {
-                // 使用新的百度搜索API
-                const searchUrl = 'https://qianfan.baidubce.com/v2/ai_search/web_search';
-                
-                const requestBody = {
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": keyword
-                        }
-                    ],
-                    "edition": "standard",
-                    "search_source": "baidu_search_v2",
-                    "search_recency_filter": "week"
-                };
-                
-                // 使用正确的Authorization头格式
-                const response = await fetch(searchUrl, {
+                const response = await fetch('/api/news-search', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer bce-v3/ALTAK-RNgimuEPImPtxauS4AilW/52446004d8edd1c4d9676bdd4a2f4c5f614c9838'
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(requestBody)
+                    body: JSON.stringify({ keyword })
                 });
                 
                 if (!response.ok) {

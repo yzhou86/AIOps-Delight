@@ -119,6 +119,18 @@ export DASHSCOPE_MODEL=qwen-turbo
 
 Without those variables, the app still performs the local data science analysis and returns deterministic fallback answers and summaries.
 
+## Environment Variables
+
+Use OS environment variables for external credentials. Do not hard-code secrets in the repository.
+
+```bash
+export DASHSCOPE_API_KEY=your_qwen_key
+export DASHSCOPE_MODEL=qwen-turbo
+export QIANFAN_BEARER_TOKEN=your_baidu_qianfan_bearer_token
+```
+
+`QIANFAN_BEARER_TOKEN` is used by the legacy news-search tools and by the backend `/api/news-search` proxy.
+
 ## Legacy AIOps Reference
 
 The following original repository content is preserved here for reference.

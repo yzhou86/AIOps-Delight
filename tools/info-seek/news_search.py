@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import urllib.request
 import urllib.error
 import json
+import os
 from datetime import datetime
 import webbrowser
 
@@ -110,6 +111,10 @@ class NewsSearchApp:
         self.root.update_idletasks()
         
         try:
+            bearer_token = os.getenv('QIANFAN_BEARER_TOKEN', '').strip()
+            if not bearer_token:
+                raise Exception("请先在操作系统环境变量中设置 QIANFAN_BEARER_TOKEN")
+
             # 使用百度搜索API
             search_url = 'https://qianfan.baidubce.com/v2/ai_search/web_search'
             
@@ -129,7 +134,7 @@ class NewsSearchApp:
             data = json.dumps(request_body).encode('utf-8')
             headers = {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer bce-v3/ALTAK-RNgimuEPImPtxauS4AilW/52446004d8edd1c4d9676bdd4a2f4c5f614c9838'
+                'Authorization': f'Bearer {bearer_token}'
             }
             
             req = urllib.request.Request(search_url, data=data, headers=headers, method='POST')
