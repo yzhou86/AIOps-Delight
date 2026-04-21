@@ -1012,6 +1012,8 @@ onMounted(() => {
   border-radius: 12px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   min-height: 46px;
   background:
     radial-gradient(circle at top right, rgba(235, 132, 72, 0.14), transparent 25%),
@@ -1033,6 +1035,7 @@ onMounted(() => {
   gap: 0.35rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .language-label {
@@ -1100,12 +1103,12 @@ onMounted(() => {
 }
 
 .workspace {
-  max-width: 1440px;
+  max-width: 1488px;
   margin: 0 auto;
   width: 100%;
   display: grid;
-  grid-template-columns: 208px minmax(0, 1fr) 208px;
-  gap: 0.55rem;
+  grid-template-columns: 224px minmax(0, 1fr) 224px;
+  gap: 0.5rem;
   align-items: stretch;
   min-height: 0;
   height: 100%;
@@ -1116,7 +1119,8 @@ onMounted(() => {
   display: grid;
   gap: 0.75rem;
   height: 100%;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   align-content: start;
   min-height: 0;
   min-width: 0;
@@ -1162,6 +1166,7 @@ onMounted(() => {
 .sidebar-card {
   border-radius: 18px;
   padding: 0.7rem;
+  min-width: 0;
 }
 
 .card-heading,
@@ -1173,6 +1178,8 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .card-pill {
@@ -1346,12 +1353,14 @@ select {
   text-align: left;
   text-decoration: none;
   font-size: 0.82rem;
+  min-width: 0;
 }
 
 .useful-link {
   display: grid;
   gap: 0.2rem;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .chat-panel {

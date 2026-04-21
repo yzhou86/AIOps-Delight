@@ -2,6 +2,10 @@
 
 AI-first data analysis workspace for AIOps datasets.
 
+![AIOps Delight Copilot](aiops-delight-copilot.png)
+
+![AIOps Architecture](diagram-ai-ops.png)
+
 The project now uses the AI agent app as the primary surface:
 
 - `frontend/`: Vue 3 chat-style analysis interface, built and served by Flask
