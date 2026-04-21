@@ -10,7 +10,7 @@ The project now uses the AI agent app as the primary surface:
 
 ## What It Does
 
-Upload a CSV or Excel file, select the ML/AI tools you want to run, add a plain-language prompt, and let the agent analyze the dataset.
+Upload a CSV or Excel file, or choose one of the built-in example datasets in the UI, then select the ML/AI tools you want to run, add a plain-language prompt, and let the agent analyze the dataset. The interface now supports English and Chinese switching, and the Qwen answer path follows the selected UI language.
 
 Available analysis tools include:
 
@@ -123,6 +123,14 @@ Without those variables, the app still performs the local data science analysis 
 
 Use OS environment variables for external credentials. Do not hard-code secrets in the repository.
 
+### Quick Start
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and fill in your real keys.
+
 ```bash
 export DASHSCOPE_API_KEY=your_qwen_key
 export DASHSCOPE_MODEL=qwen-turbo
@@ -130,6 +138,24 @@ export QIANFAN_BEARER_TOKEN=your_baidu_qianfan_bearer_token
 ```
 
 `QIANFAN_BEARER_TOKEN` is used by the legacy news-search tools and by the backend `/api/news-search` proxy.
+
+### Qwen Example
+
+Project root `.env`:
+
+```bash
+PORT=5001
+DASHSCOPE_API_KEY=sk-your-real-dashscope-key
+DASHSCOPE_MODEL=qwen-turbo
+```
+
+After saving `.env`, restart the unified Flask app:
+
+```bash
+./scripts/start/start_all.sh
+```
+
+If `DASHSCOPE_API_KEY` is present, each user message will try to call Qwen and produce a natural-language answer in the chat.
 
 ## Legacy AIOps Reference
 

@@ -1,0 +1,37 @@
+customer_id,segment,tenure_months,monthly_spend,support_tickets_90d,nps_score,feature_adoption_pct,late_payments_6m,renewal_risk,agent_note
+CUST-1001,mid_market,7,238,2,29,47,2,medium,Growing team with moderate usage and periodic support escalations. Account is stable but has visible expansion or renewal friction.
+CUST-1002,smb,10,231,4,36,44,3,high,Price-sensitive account with lighter usage and fewer admins. Renewal health is weak and the success manager should intervene quickly.
+CUST-1003,enterprise,13,309,6,43,57,1,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1004,mid_market,16,292,8,38,62,1,high,Growing team with moderate usage and periodic support escalations. Renewal health is weak and the success manager should intervene quickly.
+CUST-1005,smb,19,285,3,57,59,2,low,Price-sensitive account with lighter usage and fewer admins. Usage pattern is healthy with low support drag.
+CUST-1006,enterprise,22,363,3,64,72,0,low,Large account with integration dependency and renewal committee review. Usage pattern is healthy with low support drag.
+CUST-1007,mid_market,25,346,5,71,77,0,medium,Growing team with moderate usage and periodic support escalations. Account is stable but has visible expansion or renewal friction.
+CUST-1008,smb,28,339,7,23,74,1,high,Price-sensitive account with lighter usage and fewer admins. Renewal health is weak and the success manager should intervene quickly.
+CUST-1009,enterprise,31,417,0,30,87,1,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1010,mid_market,34,400,4,37,44,3,high,Growing team with moderate usage and periodic support escalations. Renewal health is weak and the success manager should intervene quickly.
+CUST-1011,smb,37,393,4,44,41,0,high,Price-sensitive account with lighter usage and fewer admins. Renewal health is weak and the success manager should intervene quickly.
+CUST-1012,enterprise,4,471,6,51,54,0,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1013,mid_market,7,454,8,46,59,2,high,Growing team with moderate usage and periodic support escalations. Renewal health is weak and the success manager should intervene quickly.
+CUST-1014,smb,10,447,1,65,56,3,low,Price-sensitive account with lighter usage and fewer admins. Usage pattern is healthy with low support drag.
+CUST-1015,enterprise,13,525,5,72,69,1,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1016,mid_market,16,508,5,24,74,1,high,Growing team with moderate usage and periodic support escalations. Renewal health is weak and the success manager should intervene quickly.
+CUST-1017,smb,19,501,7,31,71,2,medium,Price-sensitive account with lighter usage and fewer admins. Account is stable but has visible expansion or renewal friction.
+CUST-1018,enterprise,22,579,0,38,84,0,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1019,mid_market,25,562,2,45,89,0,low,Growing team with moderate usage and periodic support escalations. Usage pattern is healthy with low support drag.
+CUST-1020,smb,28,555,6,52,38,1,high,Price-sensitive account with lighter usage and fewer admins. Renewal health is weak and the success manager should intervene quickly.
+CUST-1021,enterprise,31,633,6,59,51,1,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1022,mid_market,34,616,8,54,56,3,high,Growing team with moderate usage and periodic support escalations. Renewal health is weak and the success manager should intervene quickly.
+CUST-1023,smb,37,609,1,73,53,0,low,Price-sensitive account with lighter usage and fewer admins. Usage pattern is healthy with low support drag.
+CUST-1024,enterprise,4,687,3,25,66,0,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1025,mid_market,7,670,7,32,71,2,medium,Growing team with moderate usage and periodic support escalations. Account is stable but has visible expansion or renewal friction.
+CUST-1026,smb,10,663,7,39,68,3,medium,Price-sensitive account with lighter usage and fewer admins. Account is stable but has visible expansion or renewal friction.
+CUST-1027,enterprise,13,741,0,46,81,1,low,Large account with integration dependency and renewal committee review. Usage pattern is healthy with low support drag.
+CUST-1028,mid_market,16,724,2,53,86,1,low,Growing team with moderate usage and periodic support escalations. Usage pattern is healthy with low support drag.
+CUST-1029,smb,19,717,4,60,35,2,high,Price-sensitive account with lighter usage and fewer admins. Renewal health is weak and the success manager should intervene quickly.
+CUST-1030,enterprise,22,795,8,55,48,0,high,Large account with integration dependency and renewal committee review. Renewal health is weak and the success manager should intervene quickly.
+CUST-1031,mid_market,25,778,8,62,53,0,high,Growing team with moderate usage and periodic support escalations. Renewal health is weak and the success manager should intervene quickly.
+CUST-1032,smb,28,771,1,26,50,1,medium,Price-sensitive account with lighter usage and fewer admins. Account is stable but has visible expansion or renewal friction.
+CUST-1033,enterprise,31,849,3,33,63,1,medium,Large account with integration dependency and renewal committee review. Account is stable but has visible expansion or renewal friction.
+CUST-1034,mid_market,34,832,5,40,68,3,medium,Growing team with moderate usage and periodic support escalations. Account is stable but has visible expansion or renewal friction.
+CUST-1035,smb,37,825,9,35,65,0,high,Price-sensitive account with lighter usage and fewer admins. Renewal health is weak and the success manager should intervene quickly.
+CUST-1036,enterprise,4,903,0,54,78,0,low,Large account with integration dependency and renewal committee review. Usage pattern is healthy with low support drag.

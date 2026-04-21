@@ -6,6 +6,9 @@ import urllib.request
 
 from flask import Flask, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from analysis_tools import (
     build_agent_answer,
@@ -21,10 +24,55 @@ BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 FRONTEND_DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
 UPLOAD_DIR = BASE_DIR / "uploads"
+EXAMPLES_DIR = PROJECT_ROOT / "examples"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".csv", ".xls", ".xlsx"}
 DATASET_STORE = {}
+EXAMPLE_CATALOG = [
+    {
+        "id": "ops_capacity_forecast",
+        "fileName": "ops_capacity_forecast.csv",
+        "label": "Ops Capacity Forecast",
+        "description": "Time-series operations metrics with load, latency, and queue depth for forecasting and anomaly checks.",
+        "recommendedTools": ["data_profile", "correlation_explorer", "anomaly_detector", "forecast_baseline"],
+    },
+    {
+        "id": "incident_log_topics",
+        "fileName": "incident_log_topics.csv",
+        "label": "Incident Log Topics",
+        "description": "Free-text incident summaries and resolution hints for text clustering and segmentation.",
+        "recommendedTools": ["data_profile", "text_clusterer", "kmeans_segmentation"],
+    },
+    {
+        "id": "fraud_risk_classification",
+        "fileName": "fraud_risk_classification.csv",
+        "label": "Fraud Risk Classification",
+        "description": "Tabular fraud-likelihood records for classification, segmentation, and signal discovery.",
+        "recommendedTools": ["data_profile", "correlation_explorer", "classification_explorer"],
+    },
+    {
+        "id": "service_health_anomalies",
+        "fileName": "service_health_anomalies.xlsx",
+        "label": "Service Health Anomalies",
+        "description": "Workbook with service-health metrics and ticket text, useful for anomalies and mixed-signal analysis.",
+        "recommendedTools": ["data_profile", "anomaly_detector", "forecast_baseline", "text_clusterer"],
+    },
+    {
+        "id": "customer_churn_signals",
+        "fileName": "customer_churn_signals.csv",
+        "label": "Customer Churn Signals",
+        "description": "Subscription-health and support-behavior data for churn classification and feature ranking.",
+        "recommendedTools": ["data_profile", "correlation_explorer", "classification_explorer", "kmeans_segmentation"],
+    },
+    {
+        "id": "cloud_cost_guardrails",
+        "fileName": "cloud_cost_guardrails.csv",
+        "label": "Cloud Cost Guardrails",
+        "description": "Daily cloud spend, traffic, and efficiency metrics for anomaly detection and forecasting.",
+        "recommendedTools": ["data_profile", "correlation_explorer", "anomaly_detector", "forecast_baseline"],
+    },
+]
 
 app = Flask(__name__, static_folder=str(FRONTEND_DIST_DIR), static_url_path="")
 
@@ -52,6 +100,37 @@ def qianfan_bearer_token():
     return os.getenv("QIANFAN_BEARER_TOKEN", "").strip()
 
 
+def serialize_examples():
+    return EXAMPLE_CATALOG
+
+
+def find_example(example_id):
+    for example in EXAMPLE_CATALOG:
+        if example["id"] == example_id:
+            return example
+    return None
+
+
+def register_dataset(file_path, filename, source="upload", example_id=None):
+    dataset_id = str(uuid.uuid4())
+    dataframe = load_dataframe(file_path)
+    dataset_info = inspect_dataframe(dataframe, filename=filename, dataset_id=dataset_id)
+    dataset_info["source"] = source
+    if example_id:
+        dataset_info["exampleId"] = example_id
+
+    DATASET_STORE[dataset_id] = {
+        "dataset_id": dataset_id,
+        "file_name": filename,
+        "path": str(file_path),
+        "info": dataset_info,
+        "chat_history": [],
+        "source": source,
+        "example_id": example_id,
+    }
+    return dataset_info
+
+
 @app.get("/api/health")
 def health():
     return jsonify({"status": "ok"})
@@ -60,6 +139,11 @@ def health():
 @app.get("/api/tools")
 def get_tools():
     return jsonify({"tools": serialize_tool_catalog()})
+
+
+@app.get("/api/examples")
+def get_examples():
+    return jsonify({"examples": serialize_examples()})
 
 
 @app.post("/api/news-search")
@@ -112,25 +196,40 @@ def inspect_dataset():
     if not allowed_file(filename):
         return error_response("Unsupported file type. Upload CSV, XLS, or XLSX.")
 
-    dataset_id = str(uuid.uuid4())
-    stored_name = f"{dataset_id}_{filename}"
+    storage_id = str(uuid.uuid4())
+    stored_name = f"{storage_id}_{filename}"
     file_path = UPLOAD_DIR / stored_name
     uploaded_file.save(file_path)
 
     try:
-        dataframe = load_dataframe(file_path)
-        dataset_info = inspect_dataframe(dataframe, filename=filename, dataset_id=dataset_id)
+        dataset_info = register_dataset(file_path, filename, source="upload")
     except Exception as exc:
         file_path.unlink(missing_ok=True)
         return error_response(str(exc))
+    return jsonify(dataset_info)
 
-    DATASET_STORE[dataset_id] = {
-        "dataset_id": dataset_id,
-        "file_name": filename,
-        "path": str(file_path),
-        "info": dataset_info,
-        "chat_history": [],
-    }
+
+@app.post("/api/examples/load")
+def load_example_dataset():
+    payload = request.get_json(silent=True) or {}
+    example_id = (payload.get("exampleId") or "").strip()
+    example = find_example(example_id)
+    if not example:
+        return error_response("Example dataset not found.", 404)
+
+    file_path = EXAMPLES_DIR / example["fileName"]
+    if not file_path.exists():
+        return error_response("Example file is missing from the examples directory.", 500)
+
+    try:
+        dataset_info = register_dataset(
+            file_path,
+            example["fileName"],
+            source="example",
+            example_id=example_id,
+        )
+    except Exception as exc:
+        return error_response(str(exc), 500)
     return jsonify(dataset_info)
 
 
@@ -140,6 +239,7 @@ def analyze_dataset():
     dataset_id = payload.get("datasetId")
     selected_tools = payload.get("selectedTools") or []
     prompt = (payload.get("prompt") or "").strip()
+    language = (payload.get("language") or "en").strip()
 
     if not dataset_id or dataset_id not in DATASET_STORE:
         return error_response("Dataset not found. Upload the file again.", 404)
@@ -160,6 +260,7 @@ def analyze_dataset():
 
     context = {
         "prompt": prompt,
+        "language": language,
         "target_column": payload.get("targetColumn"),
         "time_column": payload.get("timeColumn"),
         "value_column": payload.get("valueColumn"),
@@ -185,8 +286,8 @@ def analyze_dataset():
             )
 
     chat_history = dataset_record.setdefault("chat_history", [])
-    answer = build_agent_answer(dataset_info, prompt, results, chat_history)
-    summary = build_agent_summary(dataset_info, prompt, results)
+    answer = build_agent_answer(dataset_info, prompt, results, chat_history, language=language)
+    summary = build_agent_summary(dataset_info, prompt, results, language=language)
 
     if prompt:
         chat_history.append({"role": "user", "content": prompt})

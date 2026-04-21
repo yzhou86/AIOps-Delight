@@ -69,3 +69,32 @@ Suggested settings for `support_tickets`:
 
 - Target column: `label`
 - Text columns: `ticket_text`
+
+### `customer_churn_signals.csv`
+
+Best for:
+
+- Dataset Profile
+- Correlation Explorer
+- Classification Explorer
+- KMeans Segmentation
+
+Suggested settings:
+
+- Target column: `renewal_risk`
+- Text columns: `agent_note`
+
+### `cloud_cost_guardrails.csv`
+
+Best for:
+
+- Dataset Profile
+- Correlation Explorer
+- Anomaly Detector
+- Forecast Baseline
+
+Suggested settings:
+
+- Time column: `date`
+- Value column: `daily_cost_usd`
+- Text columns: `operator_note`
