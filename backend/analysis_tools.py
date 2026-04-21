@@ -563,9 +563,39 @@ def build_agent_summary(dataset_info, prompt, results):
 
 
 def build_agent_answer(dataset_info, prompt, results, chat_history=None):
-    fallback_answer = build_agent_summary(dataset_info, prompt, results)
+    fallback_answer = _build_fallback_answer(dataset_info, prompt, results)
     llm_answer = _maybe_build_llm_answer(dataset_info, prompt, results, chat_history or [])
     return llm_answer or fallback_answer
+
+
+def _build_fallback_answer(dataset_info, prompt, results):
+    successful = [result for result in results if result["status"] == "ok"]
+    skipped = [result for result in results if result["status"] == "skipped"]
+
+    lines = []
+    if prompt:
+        lines.append(f"For your question, my short answer is based on {dataset_info['fileName']} and the tools you selected.")
+    else:
+        lines.append(f"I analyzed {dataset_info['fileName']} and here is the most useful answer I can give.")
+
+    if successful:
+        top = successful[0]
+        lines.append(f"The strongest signal from the current run is: {top['headline']}")
+        if top["insights"]:
+            lines.append(top["insights"][0])
+
+    if len(successful) > 1:
+        lines.append("Other completed tools also added supporting evidence:")
+        for result in successful[1:3]:
+            lines.append(f"- {result['toolName']}: {result['headline']}")
+
+    if skipped:
+        lines.append("A few tools could not add signal with the current dataset or settings:")
+        for result in skipped[:2]:
+            lines.append(f"- {result['toolName']}: {result['headline']}")
+
+    lines.append("You can review the detailed tables below for the evidence behind this answer.")
+    return "\n".join(lines)
 
 
 def _maybe_build_llm_summary(dataset_info, prompt, results):

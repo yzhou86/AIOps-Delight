@@ -221,6 +221,8 @@ async function analyzeDataset() {
       role: 'assistant',
       kind: 'analysis',
       text: data.answer || data.summary,
+      answer: data.answer || data.summary,
+      summary: data.summary,
       analysis: data
     })
     prompt.value = ''
@@ -453,7 +455,19 @@ onMounted(() => {
                 </div>
 
                 <div v-if="message.kind === 'analysis'" class="analysis-message">
-                  <pre class="summary-block">{{ message.text }}</pre>
+                  <section class="answer-panel">
+                    <div class="analysis-label">AI Answer</div>
+                    <pre class="summary-block">{{ message.answer || message.text }}</pre>
+                  </section>
+
+                  <section
+                    v-if="message.summary && message.summary !== (message.answer || message.text)"
+                    class="summary-panel"
+                  >
+                    <div class="analysis-label">Analysis Summary</div>
+                    <pre class="summary-block secondary">{{ message.summary }}</pre>
+                  </section>
+
                   <div class="analysis-tools">
                     <span
                       v-for="tool in message.analysis.selectedTools"
@@ -984,6 +998,25 @@ select {
   font-family: inherit;
   line-height: 1.7;
   font-size: 0.9rem;
+}
+
+.summary-block.secondary {
+  color: var(--muted);
+}
+
+.answer-panel,
+.summary-panel {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.analysis-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
 }
 
 .table-shell {
