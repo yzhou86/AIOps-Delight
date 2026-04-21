@@ -1,8 +1,8 @@
-# AIOps Delight Copilot
+# DataPilot
 
 AI-first data analysis workspace for AIOps datasets.
 
-![AIOps Delight Copilot](aiops-delight-copilot.png)
+![DataPilot](data-pilot.png)
 
 ![AIOps Architecture](diagram-ai-ops.png)
 

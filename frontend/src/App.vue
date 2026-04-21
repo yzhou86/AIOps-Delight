@@ -12,7 +12,7 @@ const COPY = {
   en: {
     welcome: 'Upload a CSV or Excel file, or choose a built-in example dataset, then ask the agent to analyze it. I will keep the full conversation history here.',
     defaultPrompt: 'Find the strongest patterns in this dataset, call out anomalies, and recommend what I should investigate next.',
-    appKicker: 'AIOps Delight Copilot',
+    appKicker: 'DataPilot',
     headerTitle: 'Chat with your dataset',
     headerSubtitle: 'Choose tools, attach a file, and talk to the analysis agent in one running thread.',
     languageLabel: 'Language',
@@ -82,7 +82,7 @@ const COPY = {
   zh: {
     welcome: '上传 CSV 或 Excel 文件，或者直接选择内置示例数据集，然后用自然语言让智能体分析。我会在这里保留完整对话历史。',
     defaultPrompt: '请找出这个数据集里最强的模式、异常点，以及接下来最值得我调查的方向。',
-    appKicker: 'AIOps Delight 智能助手',
+    appKicker: 'DataPilot 数据智能助手',
     headerTitle: '和你的数据集对话',
     headerSubtitle: '选择工具，接入数据，然后在一个连续会话里和分析智能体交流。',
     languageLabel: '语言',
