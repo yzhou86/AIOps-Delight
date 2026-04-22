@@ -42,6 +42,7 @@ const COPY = {
     datetime: 'datetime',
     aiAnswer: 'AI Answer',
     analysisSummary: 'Analysis Summary',
+    visuals: 'Visual Insights',
     attachFile: 'Attach file',
     loadingExample: 'Loading example...',
     useSelectedExample: 'Use selected example',
@@ -112,6 +113,7 @@ const COPY = {
     datetime: '时间列',
     aiAnswer: 'AI 回答',
     analysisSummary: '分析摘要',
+    visuals: '可视化图表',
     attachFile: '上传文件',
     loadingExample: '正在加载示例...',
     useSelectedExample: '使用当前示例',
@@ -263,6 +265,15 @@ const canAnalyze = computed(() =>
   !analyzeLoading.value
 )
 
+const CHART_FRAME = {
+  width: 520,
+  height: 230,
+  left: 42,
+  right: 18,
+  top: 14,
+  bottom: 30
+}
+
 function t(key, values = {}) {
   let template = copy.value[key] ?? key
   Object.entries(values).forEach(([name, value]) => {
@@ -379,6 +390,184 @@ function datasetHeadline(dataset) {
     rows: String(dataset.rowCount),
     columns: String(dataset.columnCount)
   })
+}
+
+function formatChartValue(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return value
+  if (Math.abs(num) >= 1000) return Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(num)
+  if (Math.abs(num) >= 100) return num.toFixed(0)
+  if (Math.abs(num) >= 10) return num.toFixed(1)
+  return num.toFixed(2).replace(/\.00$/, '')
+}
+
+function shortenChartLabel(label) {
+  const text = String(label ?? '')
+  return text.length > 12 ? `${text.slice(0, 12)}…` : text
+}
+
+function barPoints(chart) {
+  return chart?.series?.[0]?.data || []
+}
+
+function barWidth(value, chart) {
+  const max = Math.max(...barPoints(chart).map((point) => Number(point.value) || 0), 1)
+  return `${Math.max(6, ((Number(value) || 0) / max) * 100)}%`
+}
+
+function lineLabels(chart) {
+  const labels = []
+  ;(chart?.series || []).forEach((series) => {
+    ;(series.data || []).forEach((point) => {
+      if (!labels.includes(point.label)) {
+        labels.push(point.label)
+      }
+    })
+  })
+  return labels
+}
+
+function lineDomain(chart) {
+  const values = (chart?.series || [])
+    .flatMap((series) => series.data || [])
+    .map((point) => Number(point.value))
+    .filter((value) => Number.isFinite(value))
+
+  if (!values.length) return { min: 0, max: 1 }
+  let min = Math.min(...values)
+  let max = Math.max(...values)
+  if (min === max) {
+    min -= 1
+    max += 1
+  }
+  return { min, max }
+}
+
+function lineTicks(chart) {
+  const domain = lineDomain(chart)
+  const step = (domain.max - domain.min) / 4
+  return Array.from({ length: 5 }, (_, idx) => domain.min + step * idx)
+}
+
+function linePointX(chart, label) {
+  const labels = lineLabels(chart)
+  const plotWidth = CHART_FRAME.width - CHART_FRAME.left - CHART_FRAME.right
+  if (labels.length <= 1) return CHART_FRAME.left + plotWidth / 2
+  const index = Math.max(0, labels.indexOf(label))
+  return CHART_FRAME.left + (plotWidth * index) / (labels.length - 1)
+}
+
+function linePointY(chart, value) {
+  const domain = lineDomain(chart)
+  const plotHeight = CHART_FRAME.height - CHART_FRAME.top - CHART_FRAME.bottom
+  return CHART_FRAME.top + ((domain.max - Number(value)) / (domain.max - domain.min)) * plotHeight
+}
+
+function linePath(chart, series) {
+  const points = (series?.data || []).filter((point) => Number.isFinite(Number(point.value)))
+  if (!points.length) return ''
+  return points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${linePointX(chart, point.label)} ${linePointY(chart, point.value)}`)
+    .join(' ')
+}
+
+function lineBandPath(chart, band) {
+  const points = (band?.data || []).filter(
+    (point) => Number.isFinite(Number(point.low)) && Number.isFinite(Number(point.high))
+  )
+  if (!points.length) return ''
+  const upperPath = points
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${linePointX(chart, point.label)} ${linePointY(chart, point.high)}`)
+    .join(' ')
+  const lowerPath = points
+    .slice()
+    .reverse()
+    .map((point) => `L ${linePointX(chart, point.label)} ${linePointY(chart, point.low)}`)
+    .join(' ')
+  return `${upperPath} ${lowerPath} Z`
+}
+
+function scatterPoints(chart) {
+  return (chart?.series || []).flatMap((series) => series.data || [])
+}
+
+function scatterDomain(chart, key) {
+  const values = scatterPoints(chart)
+    .map((point) => Number(point[key]))
+    .filter((value) => Number.isFinite(value))
+  if (!values.length) return { min: 0, max: 1 }
+  let min = Math.min(...values)
+  let max = Math.max(...values)
+  if (min === max) {
+    min -= 1
+    max += 1
+  }
+  return { min, max }
+}
+
+function scatterPointX(chart, value) {
+  const domain = scatterDomain(chart, 'x')
+  const plotWidth = CHART_FRAME.width - CHART_FRAME.left - CHART_FRAME.right
+  return CHART_FRAME.left + ((Number(value) - domain.min) / (domain.max - domain.min)) * plotWidth
+}
+
+function scatterPointY(chart, value) {
+  const domain = scatterDomain(chart, 'y')
+  const plotHeight = CHART_FRAME.height - CHART_FRAME.top - CHART_FRAME.bottom
+  return CHART_FRAME.top + ((domain.max - Number(value)) / (domain.max - domain.min)) * plotHeight
+}
+
+function scatterSizeDomain(chart) {
+  const values = scatterPoints(chart)
+    .map((point) => Number(point.size))
+    .filter((value) => Number.isFinite(value))
+  if (!values.length) return { min: 0, max: 1 }
+  let min = Math.min(...values)
+  let max = Math.max(...values)
+  if (min === max) {
+    min = 0
+  }
+  return { min, max }
+}
+
+function scatterRadius(chart, point) {
+  const raw = Number(point.size)
+  if (!Number.isFinite(raw)) return chart?.variant === 'cluster3d' ? 8 : 4.8
+  const domain = scatterSizeDomain(chart)
+  const minRadius = chart?.variant === 'cluster3d' ? 7 : 4
+  const maxRadius = chart?.variant === 'cluster3d' ? 15 : 10
+  if (domain.max === domain.min) return (minRadius + maxRadius) / 2
+  return minRadius + ((raw - domain.min) / (domain.max - domain.min)) * (maxRadius - minRadius)
+}
+
+function chartToken(value) {
+  return String(value || 'chart').replace(/[^a-zA-Z0-9_-]+/g, '-')
+}
+
+function chartGradientId(chart, series, index) {
+  return `${chartToken(chart.title)}-${chartToken(series.name)}-${index}-gradient`
+}
+
+function colorToRgb(color) {
+  const hex = String(color || '#2c8f6b').replace('#', '')
+  const full = hex.length === 3 ? hex.split('').map((item) => item + item).join('') : hex
+  const int = Number.parseInt(full, 16)
+  return {
+    r: (int >> 16) & 255,
+    g: (int >> 8) & 255,
+    b: int & 255
+  }
+}
+
+function colorWithAlpha(color, alpha) {
+  const { r, g, b } = colorToRgb(color)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function lightenColor(color, factor = 0.35) {
+  const { r, g, b } = colorToRgb(color)
+  const mix = (channel) => Math.round(channel + (255 - channel) * factor)
+  return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
 }
 
 function choosePrompt(text) {
@@ -809,6 +998,191 @@ onMounted(() => {
                       <ul v-if="result.insights.length" class="insight-list">
                         <li v-for="insight in result.insights" :key="insight">{{ insight }}</li>
                       </ul>
+
+                      <div v-if="result.charts?.length" class="chart-stack">
+                        <div class="analysis-label">{{ t('visuals') }}</div>
+                        <section
+                          v-for="chart in result.charts"
+                          :key="`${result.toolId}-${chart.title}`"
+                          class="chart-card"
+                        >
+                          <div class="chart-head">
+                            <h4>{{ chart.title }}</h4>
+                            <div class="chart-legend" v-if="chart.series?.length">
+                              <span v-for="series in chart.series" :key="`${chart.title}-${series.name}`" class="legend-item">
+                                <span class="legend-dot" :style="{ backgroundColor: series.color }" />
+                                {{ series.name }}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div v-if="chart.type === 'bar'" class="chart-bars">
+                            <div v-for="point in barPoints(chart)" :key="`${chart.title}-${point.label}`" class="bar-row">
+                              <span class="bar-label">{{ shortenChartLabel(point.label) }}</span>
+                              <div class="bar-track">
+                                <span
+                                  class="bar-fill"
+                                  :style="{ width: barWidth(point.value, chart), backgroundColor: chart.series[0].color }"
+                                />
+                              </div>
+                              <span class="bar-value">{{ formatChartValue(point.value) }}</span>
+                            </div>
+                          </div>
+
+                          <div v-else-if="chart.type === 'line'" class="chart-surface">
+                            <svg class="chart-svg" :viewBox="`0 0 ${CHART_FRAME.width} ${CHART_FRAME.height}`" role="img">
+                              <path
+                                v-for="band in chart.bands || []"
+                                :key="`${chart.title}-${band.name}-band`"
+                                :d="lineBandPath(chart, band)"
+                                :fill="colorWithAlpha(band.color, 0.18)"
+                                class="chart-band"
+                              />
+                              <line
+                                x1="42"
+                                :y1="CHART_FRAME.height - CHART_FRAME.bottom"
+                                :x2="CHART_FRAME.width - CHART_FRAME.right"
+                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
+                                class="chart-axis"
+                              />
+                              <line
+                                :x1="CHART_FRAME.left"
+                                :y1="CHART_FRAME.top"
+                                :x2="CHART_FRAME.left"
+                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
+                                class="chart-axis"
+                              />
+                              <g v-for="tick in lineTicks(chart)" :key="`${chart.title}-${tick}`">
+                                <line
+                                  :x1="CHART_FRAME.left"
+                                  :y1="linePointY(chart, tick)"
+                                  :x2="CHART_FRAME.width - CHART_FRAME.right"
+                                  :y2="linePointY(chart, tick)"
+                                  class="chart-grid-line"
+                                />
+                                <text
+                                  x="6"
+                                  :y="linePointY(chart, tick) + 4"
+                                  class="chart-axis-text"
+                                >
+                                  {{ formatChartValue(tick) }}
+                                </text>
+                              </g>
+                              <path
+                                v-for="series in chart.series"
+                                :key="`${chart.title}-${series.name}-path`"
+                                :d="linePath(chart, series)"
+                                :stroke="series.color"
+                                class="chart-line"
+                              />
+                              <g v-for="series in chart.series" :key="`${chart.title}-${series.name}-points`">
+                                <circle
+                                  v-for="point in series.data"
+                                  :key="`${chart.title}-${series.name}-${point.label}`"
+                                  :cx="linePointX(chart, point.label)"
+                                  :cy="linePointY(chart, point.value)"
+                                  r="3.5"
+                                  :fill="series.color"
+                                  class="chart-point"
+                                />
+                              </g>
+                              <text
+                                v-for="label in lineLabels(chart)"
+                                :key="`${chart.title}-${label}`"
+                                :x="linePointX(chart, label)"
+                                :y="CHART_FRAME.height - 8"
+                                text-anchor="middle"
+                                class="chart-axis-text"
+                              >
+                                {{ shortenChartLabel(label) }}
+                              </text>
+                            </svg>
+                          </div>
+
+                          <div v-else-if="chart.type === 'scatter'" class="chart-surface">
+                            <svg class="chart-svg" :viewBox="`0 0 ${CHART_FRAME.width} ${CHART_FRAME.height}`" role="img">
+                              <defs v-if="chart.variant === 'cluster3d'">
+                                <radialGradient
+                                  v-for="(series, seriesIndex) in chart.series"
+                                  :key="`${chart.title}-${series.name}-gradient-def`"
+                                  :id="chartGradientId(chart, series, seriesIndex)"
+                                  cx="35%"
+                                  cy="30%"
+                                  r="70%"
+                                >
+                                  <stop offset="0%" :stop-color="lightenColor(series.color, 0.62)" />
+                                  <stop offset="55%" :stop-color="series.color" />
+                                  <stop offset="100%" :stop-color="colorWithAlpha(series.color, 0.92)" />
+                                </radialGradient>
+                              </defs>
+                              <line
+                                :x1="CHART_FRAME.left"
+                                :y1="CHART_FRAME.height - CHART_FRAME.bottom"
+                                :x2="CHART_FRAME.width - CHART_FRAME.right"
+                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
+                                class="chart-axis"
+                              />
+                              <line
+                                :x1="CHART_FRAME.left"
+                                :y1="CHART_FRAME.top"
+                                :x2="CHART_FRAME.left"
+                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
+                                class="chart-axis"
+                              />
+                              <g v-for="series in chart.series" :key="`${chart.title}-${series.name}-scatter`">
+                                <ellipse
+                                  v-if="chart.variant === 'cluster3d'"
+                                  v-for="point in series.data"
+                                  :key="`${chart.title}-${series.name}-${point.label}-shadow`"
+                                  :cx="scatterPointX(chart, point.x)"
+                                  :cy="scatterPointY(chart, point.y) + scatterRadius(chart, point) * 0.72"
+                                  :rx="scatterRadius(chart, point) * 0.92"
+                                  :ry="scatterRadius(chart, point) * 0.34"
+                                  :fill="colorWithAlpha(series.color, 0.18)"
+                                  class="chart-shadow"
+                                />
+                                <circle
+                                  v-for="point in series.data"
+                                  :key="`${chart.title}-${series.name}-${point.label}`"
+                                  :cx="scatterPointX(chart, point.x)"
+                                  :cy="scatterPointY(chart, point.y)"
+                                  :r="scatterRadius(chart, point)"
+                                  :fill="chart.variant === 'cluster3d' ? `url(#${chartGradientId(chart, series, chart.series.indexOf(series))})` : series.color"
+                                  :fill-opacity="chart.variant === 'cluster3d' ? 1 : 0.82"
+                                  class="chart-point"
+                                  :class="{ 'chart-point-3d': chart.variant === 'cluster3d' }"
+                                />
+                                <circle
+                                  v-if="chart.variant === 'cluster3d'"
+                                  v-for="point in series.data"
+                                  :key="`${chart.title}-${series.name}-${point.label}-highlight`"
+                                  :cx="scatterPointX(chart, point.x) - scatterRadius(chart, point) * 0.24"
+                                  :cy="scatterPointY(chart, point.y) - scatterRadius(chart, point) * 0.28"
+                                  :r="scatterRadius(chart, point) * 0.34"
+                                  fill="rgba(255,255,255,0.35)"
+                                  class="chart-highlight"
+                                />
+                              </g>
+                              <text
+                                :x="CHART_FRAME.width / 2"
+                                :y="CHART_FRAME.height - 6"
+                                text-anchor="middle"
+                                class="chart-axis-text"
+                              >
+                                {{ chart.xLabel }}
+                              </text>
+                              <text
+                                :x="16"
+                                :y="CHART_FRAME.height / 2"
+                                class="chart-axis-text"
+                                transform="rotate(-90 16 115)"
+                              >
+                                {{ chart.yLabel }}
+                              </text>
+                            </svg>
+                          </div>
+                        </section>
+                      </div>
 
                       <div v-if="result.warnings.length" class="result-notes">
                         <p v-for="warning in result.warnings" :key="warning">{{ warning }}</p>
@@ -1485,6 +1859,143 @@ select {
   display: grid;
   gap: 0.35rem;
   margin-bottom: 0.75rem;
+}
+
+.chart-stack {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+}
+
+.chart-card {
+  border: 1px solid rgba(16, 35, 28, 0.08);
+  border-radius: 16px;
+  padding: 0.72rem;
+  background: rgba(255, 255, 255, 0.7);
+  display: grid;
+  gap: 0.6rem;
+}
+
+.chart-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.55rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.chart-head h4 {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.legend-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+}
+
+.chart-bars {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 108px) minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.bar-label,
+.bar-value,
+.chart-axis-text {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-track {
+  height: 0.62rem;
+  border-radius: 999px;
+  background: rgba(16, 35, 28, 0.08);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.chart-surface {
+  overflow: auto hidden;
+}
+
+.chart-svg {
+  width: 100%;
+  min-width: 420px;
+  height: auto;
+  display: block;
+}
+
+.chart-axis {
+  stroke: rgba(16, 35, 28, 0.22);
+  stroke-width: 1;
+}
+
+.chart-grid-line {
+  stroke: rgba(16, 35, 28, 0.08);
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chart-band {
+  stroke: none;
+}
+
+.chart-point {
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 1.25;
+}
+
+.chart-point-3d {
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 1.4;
+  filter: drop-shadow(0 6px 10px rgba(16, 35, 28, 0.18));
+}
+
+.chart-shadow {
+  filter: blur(3px);
+}
+
+.chart-highlight {
+  pointer-events: none;
 }
 
 .analysis-label {

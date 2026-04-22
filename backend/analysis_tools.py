@@ -82,6 +82,8 @@ TOOL_CATALOG = [
     },
 ]
 
+CHART_COLORS = ["#2c8f6b", "#db6d45", "#4a6cf7", "#c28b1c", "#8a5adf", "#0f766e"]
+
 
 def serialize_tool_catalog():
     return TOOL_CATALOG
@@ -195,6 +197,48 @@ def run_data_profile(dataframe, context):
     if missing_rows:
         tables.append(_rows_table("缺失值概览" if language == "zh" else "Missing Values", missing_rows))
 
+    charts = []
+    if not numeric_frame.empty and "mean" in summary.columns:
+        mean_rows = (
+            summary[["column", "mean"]]
+            .dropna()
+            .assign(abs_mean=lambda frame: frame["mean"].abs())
+            .sort_values("abs_mean", ascending=False)
+            .head(6)
+        )
+        charts.append(
+            _chart_payload(
+                "主要数值字段均值" if language == "zh" else "Top Numeric Means",
+                "bar",
+                [
+                    _chart_series(
+                        "均值" if language == "zh" else "Mean",
+                        [
+                            {"label": row["column"], "value": row["mean"]}
+                            for _, row in mean_rows.iterrows()
+                        ],
+                        CHART_COLORS[0],
+                    )
+                ],
+                y_label="均值" if language == "zh" else "Mean",
+            )
+        )
+    if missing_rows:
+        charts.append(
+            _chart_payload(
+                "缺失值分布" if language == "zh" else "Missing Value Distribution",
+                "bar",
+                [
+                    _chart_series(
+                        "缺失数量" if language == "zh" else "Missing count",
+                        [{"label": row["column"], "value": row["missing_count"]} for row in missing_rows[:8]],
+                        CHART_COLORS[1],
+                    )
+                ],
+                y_label="缺失数量" if language == "zh" else "Missing count",
+            )
+        )
+
     if language == "zh":
         insights = [
             f"该数据集共有 {info['rowCount']} 行、{info['columnCount']} 列。",
@@ -213,6 +257,7 @@ def run_data_profile(dataframe, context):
             f"已完成 {info['rowCount']} 行、{info['columnCount']} 列的数据概览。",
             insights,
             tables=tables,
+            charts=charts,
         )
 
     insights = [
@@ -232,6 +277,7 @@ def run_data_profile(dataframe, context):
         f"Profiled {info['rowCount']} rows across {info['columnCount']} columns.",
         insights,
         tables=tables,
+        charts=charts,
     )
 
 
@@ -265,6 +311,52 @@ def run_correlation_explorer(dataframe, context):
     direction = ("正相关" if language == "zh" else "positive") if top["correlation"] >= 0 else ("负相关" if language == "zh" else "negative")
     focus_columns = list(dict.fromkeys([pair["left"] for pair in strongest] + [pair["right"] for pair in strongest]))[:6]
     matrix = corr.loc[focus_columns, focus_columns].round(3).reset_index().rename(columns={"index": "column"})
+    scatter_frame = dataframe[[top["left"], top["right"]]].apply(pd.to_numeric, errors="coerce").dropna().head(80)
+    scatter_center = scatter_frame.mean()
+    charts = [
+        _chart_payload(
+            "最强相关关系" if language == "zh" else "Strongest Correlations",
+            "bar",
+            [
+                _chart_series(
+                    "相关强度" if language == "zh" else "Absolute correlation",
+                    [
+                        {"label": f"{item['left']} vs {item['right']}", "value": item["absolute_correlation"]}
+                        for item in strongest
+                    ],
+                    CHART_COLORS[0],
+                )
+            ],
+            y_label="绝对相关系数" if language == "zh" else "Absolute correlation",
+        )
+    ]
+    if not scatter_frame.empty:
+        charts.append(
+            _chart_payload(
+                "关键相关散点图" if language == "zh" else "Correlation Scatter",
+                "scatter",
+                [
+                    _chart_series(
+                        "数据点" if language == "zh" else "Records",
+                        [
+                            {
+                                "x": scatter_frame.iloc[idx][top["left"]],
+                                "y": scatter_frame.iloc[idx][top["right"]],
+                                "label": f"#{idx + 1}",
+                                "size": float(
+                                    abs(scatter_frame.iloc[idx][top["left"]] - scatter_center[top["left"]])
+                                    + abs(scatter_frame.iloc[idx][top["right"]] - scatter_center[top["right"]])
+                                ),
+                            }
+                            for idx in range(len(scatter_frame))
+                        ],
+                        CHART_COLORS[1],
+                    )
+                ],
+                x_label=top["left"],
+                y_label=top["right"],
+            )
+        )
 
     if language == "zh":
         insights = [
@@ -281,6 +373,7 @@ def run_correlation_explorer(dataframe, context):
                 _rows_table("最强相关关系", strongest),
                 _table_payload("相关系数矩阵", matrix),
             ],
+            charts=charts,
         )
 
     insights = [
@@ -297,6 +390,7 @@ def run_correlation_explorer(dataframe, context):
             _rows_table("Strongest Correlations", strongest),
             _table_payload("Correlation Matrix", matrix),
         ],
+        charts=charts,
     )
 
 
@@ -321,9 +415,71 @@ def run_anomaly_detector(dataframe, context):
 
     scored = dataframe.copy()
     scored["anomaly_score"] = scores
+    scored["anomaly_flag"] = anomaly_mask
     anomalies = scored.loc[anomaly_mask].sort_values("anomaly_score", ascending=False)
     preview_columns = list(numeric_frame.columns[:5]) + ["anomaly_score"]
     preview = anomalies[preview_columns].head(10).round(4)
+    charts = [
+        _chart_payload(
+            "异常分数 Top" if language == "zh" else "Top Anomaly Scores",
+            "bar",
+            [
+                _chart_series(
+                    "异常分数" if language == "zh" else "Anomaly score",
+                    [
+                        {"label": str(index), "value": row["anomaly_score"]}
+                        for index, row in anomalies.head(8).iterrows()
+                    ],
+                    CHART_COLORS[1],
+                )
+            ],
+            y_label="异常分数" if language == "zh" else "Anomaly score",
+        )
+    ]
+    if numeric_frame.shape[1] >= 2:
+        left, right = numeric_frame.columns[:2]
+        scatter_base = scored[[left, right, "anomaly_flag", "anomaly_score"]].copy()
+        scatter_base[left] = pd.to_numeric(scatter_base[left], errors="coerce")
+        scatter_base[right] = pd.to_numeric(scatter_base[right], errors="coerce")
+        scatter_base = scatter_base.dropna()
+        normal_points = scatter_base.loc[~scatter_base["anomaly_flag"]].head(40)
+        anomaly_points = scatter_base.loc[scatter_base["anomaly_flag"]].head(20)
+        charts.append(
+            _chart_payload(
+                "异常分布图" if language == "zh" else "Anomaly Scatter",
+                "scatter",
+                [
+                    _chart_series(
+                        "基线样本" if language == "zh" else "Baseline",
+                        [
+                            {
+                                "x": row[left],
+                                "y": row[right],
+                                "label": str(index),
+                                "size": row["anomaly_score"],
+                            }
+                            for index, row in normal_points.iterrows()
+                        ],
+                        CHART_COLORS[0],
+                    ),
+                    _chart_series(
+                        "异常样本" if language == "zh" else "Anomalies",
+                        [
+                            {
+                                "x": row[left],
+                                "y": row[right],
+                                "label": str(index),
+                                "size": row["anomaly_score"],
+                            }
+                            for index, row in anomaly_points.iterrows()
+                        ],
+                        CHART_COLORS[1],
+                    ),
+                ],
+                x_label=left,
+                y_label=right,
+            )
+        )
 
     if language == "zh":
         insights = [
@@ -337,6 +493,7 @@ def run_anomaly_detector(dataframe, context):
             f"已识别出 {anomaly_count} 行异常记录。",
             insights,
             tables=[_table_payload("高风险异常记录", preview)],
+            charts=charts,
         )
 
     insights = [
@@ -350,6 +507,7 @@ def run_anomaly_detector(dataframe, context):
         f"Flagged {anomaly_count} anomalous rows.",
         insights,
         tables=[_table_payload("Top Anomalies", preview)],
+        charts=charts,
     )
 
 
@@ -369,6 +527,7 @@ def run_kmeans_segmentation(dataframe, context):
 
     segmented = dataframe.copy()
     segmented["segment"] = labels
+    segmented["cluster_distance"] = np.linalg.norm(scaled - model.cluster_centers_[labels], axis=1)
     segment_sizes = (
         segmented["segment"]
         .value_counts()
@@ -379,6 +538,50 @@ def run_kmeans_segmentation(dataframe, context):
     segment_sizes["share"] = (segment_sizes["rows"] / len(segmented)).round(4)
 
     centroids = segmented.groupby("segment")[numeric_frame.columns].mean().round(3).reset_index()
+    charts = [
+        _chart_payload(
+            "分群规模" if language == "zh" else "Segment Sizes",
+            "bar",
+            [
+                _chart_series(
+                    "样本数" if language == "zh" else "Rows",
+                    [{"label": f"S{row['segment']}", "value": row["rows"]} for _, row in segment_sizes.iterrows()],
+                    CHART_COLORS[0],
+                )
+            ],
+            y_label="样本数" if language == "zh" else "Rows",
+        )
+    ]
+    if numeric_frame.shape[1] >= 2:
+        left, right = numeric_frame.columns[:2]
+        scatter_source = segmented[[left, right, "segment", "cluster_distance"]].copy().dropna().groupby("segment").head(18)
+        scatter_series = []
+        for idx, (segment_id, group) in enumerate(scatter_source.groupby("segment")):
+            scatter_series.append(
+                _chart_series(
+                    f"分群 {segment_id}" if language == "zh" else f"Segment {segment_id}",
+                    [
+                        {
+                            "x": row[left],
+                            "y": row[right],
+                            "label": str(index),
+                            "size": row["cluster_distance"],
+                        }
+                        for index, row in group.iterrows()
+                    ],
+                    CHART_COLORS[idx % len(CHART_COLORS)],
+                )
+            )
+        charts.append(
+            _chart_payload(
+                "分群散点图" if language == "zh" else "Segment Scatter",
+                "scatter",
+                scatter_series,
+                x_label=left,
+                y_label=right,
+                variant="cluster3d",
+            )
+        )
     if language == "zh":
         insights = [
             f"已基于 {numeric_frame.shape[1]} 个数值列构建出 {cluster_count} 个分群。",
@@ -394,6 +597,7 @@ def run_kmeans_segmentation(dataframe, context):
                 _table_payload("分群规模", segment_sizes),
                 _table_payload("分群中心", centroids),
             ],
+            charts=charts,
         )
 
     insights = [
@@ -410,6 +614,7 @@ def run_kmeans_segmentation(dataframe, context):
             _table_payload("Segment Sizes", segment_sizes),
             _table_payload("Segment Centroids", centroids),
         ],
+        charts=charts,
     )
 
 
@@ -450,6 +655,20 @@ def run_text_clusterer(dataframe, context):
 
     preview = labeled.sort_values(["cluster", "text"]).head(10).copy()
     preview["text"] = preview["text"].str.slice(0, 120)
+    charts = [
+        _chart_payload(
+            "主题簇规模" if language == "zh" else "Topic Cluster Sizes",
+            "bar",
+            [
+                _chart_series(
+                    "文本量" if language == "zh" else "Rows",
+                    [{"label": f"C{row['cluster']}", "value": row["rows"]} for row in cluster_rows],
+                    CHART_COLORS[0],
+                )
+            ],
+            y_label="文本量" if language == "zh" else "Rows",
+        )
+    ]
 
     if language == "zh":
         insights = [
@@ -466,6 +685,7 @@ def run_text_clusterer(dataframe, context):
                 _rows_table("主题聚类概览", cluster_rows),
                 _table_payload("各聚类文本样例", preview),
             ],
+            charts=charts,
         )
 
     insights = [
@@ -482,6 +702,7 @@ def run_text_clusterer(dataframe, context):
             _rows_table("Topic Clusters", cluster_rows),
             _table_payload("Sample Text by Cluster", preview),
         ],
+        charts=charts,
     )
 
 
@@ -527,6 +748,58 @@ def run_forecast_baseline(dataframe, context):
             "predicted_value": np.round(future_values, 4),
         }
     )
+    residuals = y - model.predict(x)
+    residual_std = float(np.std(residuals)) if len(residuals) > 1 else 0.0
+    confidence_width = max(residual_std * 1.64, max(np.std(y) * 0.08, 0.05))
+    forecast_rows["lower_bound"] = np.round(forecast_rows["predicted_value"] - confidence_width, 4)
+    forecast_rows["upper_bound"] = np.round(forecast_rows["predicted_value"] + confidence_width, 4)
+    observed_tail = forecast_frame.tail(min(len(forecast_frame), 18)).copy()
+    charts = [
+        _chart_payload(
+            "趋势与预测" if language == "zh" else "Trend and Forecast",
+            "line",
+            [
+                _chart_series(
+                    "历史值" if language == "zh" else "Observed",
+                    [
+                        {
+                            "label": pd.Timestamp(row[time_column]).strftime("%Y-%m-%d"),
+                            "value": row[value_column],
+                        }
+                        for _, row in observed_tail.iterrows()
+                    ],
+                    CHART_COLORS[0],
+                ),
+                _chart_series(
+                    "预测值" if language == "zh" else "Forecast",
+                    [
+                        {
+                            "label": pd.Timestamp(row["forecast_time"]).strftime("%Y-%m-%d"),
+                            "value": row["predicted_value"],
+                        }
+                        for _, row in forecast_rows.iterrows()
+                    ],
+                    CHART_COLORS[1],
+                ),
+            ],
+            x_label=time_column,
+            y_label=value_column,
+            bands=[
+                {
+                    "name": "预测置信带" if language == "zh" else "Confidence band",
+                    "color": CHART_COLORS[1],
+                    "data": [
+                        {
+                            "label": pd.Timestamp(row["forecast_time"]).strftime("%Y-%m-%d"),
+                            "low": row["lower_bound"],
+                            "high": row["upper_bound"],
+                        }
+                        for _, row in forecast_rows.iterrows()
+                    ],
+                }
+            ],
+        )
+    ]
 
     slope_direction = ("上升" if language == "zh" else "upward") if model.coef_[0] >= 0 else ("下降" if language == "zh" else "downward")
     if language == "zh":
@@ -541,6 +814,7 @@ def run_forecast_baseline(dataframe, context):
             f"已为 {value_column} 预测未来 {horizon} 个时间点。",
             insights,
             tables=[_table_payload("预测结果", forecast_rows)],
+            charts=charts,
         )
 
     insights = [
@@ -554,6 +828,7 @@ def run_forecast_baseline(dataframe, context):
         f"Forecasted {horizon} future points for {value_column}.",
         insights,
         tables=[_table_payload("Forecast", forecast_rows)],
+        charts=charts,
     )
 
 
@@ -628,6 +903,32 @@ def run_classification_explorer(dataframe, context):
         .rename_axis("class")
         .reset_index(name="rows")
     )
+    charts = [
+        _chart_payload(
+            "特征重要性" if language == "zh" else "Feature Importance",
+            "bar",
+            [
+                _chart_series(
+                    "重要性" if language == "zh" else "Importance",
+                    [{"label": row["feature"], "value": row["importance"]} for _, row in feature_importance.iterrows()],
+                    CHART_COLORS[0],
+                )
+            ],
+            y_label="重要性" if language == "zh" else "Importance",
+        ),
+        _chart_payload(
+            "类别分布" if language == "zh" else "Class Balance",
+            "bar",
+            [
+                _chart_series(
+                    "样本数" if language == "zh" else "Rows",
+                    [{"label": str(row["class"]), "value": row["rows"]} for _, row in class_balance.iterrows()],
+                    CHART_COLORS[1],
+                )
+            ],
+            y_label="样本数" if language == "zh" else "Rows",
+        ),
+    ]
 
     if language == "zh":
         insights = [
@@ -644,6 +945,7 @@ def run_classification_explorer(dataframe, context):
                 _table_payload("类别分布", class_balance),
                 _table_payload("特征重要性 Top10", feature_importance.round(4)),
             ],
+            charts=charts,
         )
 
     insights = [
@@ -660,6 +962,7 @@ def run_classification_explorer(dataframe, context):
             _table_payload("Class Balance", class_balance),
             _table_payload("Top Feature Importance", feature_importance.round(4)),
         ],
+        charts=charts,
     )
 
 
@@ -896,7 +1199,7 @@ def _numeric_frame(dataframe):
     return numeric
 
 
-def _result(tool_id, status, headline, insights, warnings=None, tables=None):
+def _result(tool_id, status, headline, insights, warnings=None, tables=None, charts=None):
     tool = _tool_by_id(tool_id)
     return {
         "toolId": tool_id,
@@ -906,11 +1209,42 @@ def _result(tool_id, status, headline, insights, warnings=None, tables=None):
         "insights": insights,
         "warnings": warnings or [],
         "tables": tables or [],
+        "charts": [chart for chart in (charts or []) if chart],
     }
 
 
 def _skipped(tool_id, reason):
     return _result(tool_id, "skipped", reason, [], warnings=[reason], tables=[])
+
+
+def _chart_series(name, data, color):
+    return {
+        "name": name,
+        "color": color,
+        "data": [_sanitize_record(row) for row in data if row],
+    }
+
+
+def _chart_payload(title, chart_type, series, x_label=None, y_label=None, variant=None, bands=None):
+    clean_series = [item for item in series if item.get("data")]
+    if not clean_series:
+        return None
+    return {
+        "title": title,
+        "type": chart_type,
+        "xLabel": x_label,
+        "yLabel": y_label,
+        "series": clean_series,
+        "variant": variant,
+        "bands": [
+            {
+                **_sanitize_record({key: value for key, value in band.items() if key != "data"}),
+                "data": [_sanitize_record(row) for row in band.get("data", []) if row],
+            }
+            for band in (bands or [])
+            if band
+        ],
+    }
 
 
 def _table_payload(title, dataframe):
