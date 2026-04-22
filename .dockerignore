@@ -1,0 +1,17 @@
+.git
+.github
+.idea
+.venv
+.vscode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.env
+backend/uploads/
+chroma_db/
+frontend/node_modules/
+frontend/dist/
+node_modules/
+tools/skills-test/node_modules/

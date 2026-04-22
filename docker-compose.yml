@@ -1,0 +1,19 @@
+services:
+  datapilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: datapilot:latest
+    container_name: datapilot
+    ports:
+      - "${PORT:-5001}:5001"
+    env_file:
+      - .env
+    environment:
+      PORT: 5001
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+    volumes:
+      - ./backend/uploads:/app/backend/uploads
+    restart: unless-stopped

@@ -139,6 +139,40 @@ export DASHSCOPE_MODEL=qwen-turbo
 export QIANFAN_BEARER_TOKEN=your_baidu_qianfan_bearer_token
 ```
 
+## Docker Deployment
+
+### Build and Run with Docker
+
+```bash
+docker build -t datapilot:latest .
+docker run -d \
+  --name datapilot \
+  -p 5001:5001 \
+  --env-file .env \
+  -v $(pwd)/backend/uploads:/app/backend/uploads \
+  datapilot:latest
+```
+
+### Run with Docker Compose
+
+```bash
+docker compose up -d --build
+```
+
+Useful commands:
+
+```bash
+docker compose logs -f
+docker compose ps
+docker compose down
+```
+
+Notes:
+
+- `backend/uploads` is mounted into the container so uploaded files persist across restarts.
+- The container serves the unified Flask app and the built frontend together.
+- The service reads secrets from the root `.env` file through `env_file`.
+
 `QIANFAN_BEARER_TOKEN` is used by the legacy news-search tools and by the backend `/api/news-search` proxy.
 
 ### Qwen Example
