@@ -54,6 +54,8 @@ class SqliteDao:
 
         if not self.get_user_by_username("admin"):
             self.create_user("admin", "nimda", role="admin")
+        if not self.get_user_by_username("guest"):
+            self.create_user("guest", "guest", role="user")
 
     def get_user_by_username(self, username):
         with self.connect() as connection:

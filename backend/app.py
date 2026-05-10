@@ -44,6 +44,8 @@ UPLOAD_DIR = BASE_DIR / "uploads"
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "datapilot.db"
 EXAMPLES_DIR = PROJECT_ROOT / "examples"
+GUEST_EXAMPLE_ID = "service_health_anomalies"
+GUEST_TOOL_IDS = ["data_profile", "anomaly_detector"]
 
 UPLOAD_DIR.mkdir(exist_ok=True)
 DATA_DIR.mkdir(exist_ok=True)
@@ -151,6 +153,11 @@ def serialize_user(user):
     }
 
 
+def is_guest_user(user=None):
+    user = user or get_current_user()
+    return bool(user and user.get("username") == "guest")
+
+
 def get_current_user():
     if hasattr(g, "current_user"):
         return g.current_user
@@ -203,6 +210,80 @@ def register_dataset(file_path, filename, owner_user_id, source="upload", exampl
         "owner_user_id": owner_user_id,
     }
     return dataset_info
+
+
+def guest_prompt(language):
+    if str(language).lower().startswith("zh"):
+        return "请展示这个固定演示数据集的异常检测结果。"
+    return "Show the anomaly-detection result for this fixed demo dataset."
+
+
+def build_guest_demo_response(language, owner_user_id):
+    example = find_example(GUEST_EXAMPLE_ID)
+    if not example:
+        raise ValueError("Guest demo example is not configured.")
+
+    file_path = EXAMPLES_DIR / example["fileName"]
+    if not file_path.exists():
+        raise ValueError("Guest demo example file is missing.")
+
+    dataset_info = register_dataset(
+        file_path,
+        example["fileName"],
+        owner_user_id=owner_user_id,
+        source="guest-demo",
+        example_id=GUEST_EXAMPLE_ID,
+    )
+    dataframe = load_dataframe(file_path)
+    prompt = guest_prompt(language)
+    context = {
+        "prompt": prompt,
+        "language": language,
+        "target_column": None,
+        "time_column": None,
+        "value_column": None,
+        "text_columns": [],
+        "dataset_info": dataset_info,
+    }
+    results = [run_tool(tool_id, dataframe.copy(), context) for tool_id in GUEST_TOOL_IDS]
+    anomaly_result = next((result for result in results if result["toolId"] == "anomaly_detector"), results[-1])
+    profile_result = next((result for result in results if result["toolId"] == "data_profile"), results[0])
+
+    if str(language).lower().startswith("zh"):
+        answer = (
+            f"这是访客预览模式。当前固定演示文件是 {example['fileName']}。"
+            f"本次演示重点是异常检测：{anomaly_result['headline']}"
+            "你可以查看下方图表和表格了解异常记录，但访客账号不能上传文件，也不能发起新的智能问数对话。"
+        )
+        summary = (
+            f"固定演示已加载：{profile_result['headline']} "
+            f"{anomaly_result['headline']}"
+        )
+    else:
+        answer = (
+            f"This is the guest preview mode. The fixed demo file is {example['fileName']}. "
+            f"The preview focuses on anomaly detection: {anomaly_result['headline']} "
+            "You can inspect the charts and tables below, but guest accounts cannot upload files or start new agent conversations."
+        )
+        summary = f"Fixed demo loaded: {profile_result['headline']} {anomaly_result['headline']}"
+
+    return {
+        "dataset": dataset_info,
+        "prompt": prompt,
+        "answer": answer,
+        "summary": summary,
+        "results": results,
+        "selectedTools": GUEST_TOOL_IDS,
+        "toolMode": "manual",
+        "resolvedContext": {
+            "targetColumn": None,
+            "timeColumn": None,
+            "valueColumn": None,
+            "textColumns": [],
+        },
+        "guestMode": True,
+        "exampleId": GUEST_EXAMPLE_ID,
+    }
 
 
 def normalize_llm_payload(payload):
@@ -286,6 +367,8 @@ def change_own_password():
         return error_response("New password must be at least 4 characters long.")
 
     user = get_current_user()
+    if is_guest_user(user):
+        return error_response("Guest preview password cannot be changed.", 403)
     if not dao.verify_user(user["username"], current_password):
         return error_response("Current password is incorrect.", 403)
 
@@ -356,7 +439,24 @@ def get_tools():
 @app.get("/api/examples")
 @login_required
 def get_examples():
+    if is_guest_user():
+        example = find_example(GUEST_EXAMPLE_ID)
+        return jsonify({"examples": [example] if example else []})
     return jsonify({"examples": serialize_examples()})
+
+
+@app.get("/api/guest-demo")
+@login_required
+def get_guest_demo():
+    user = get_current_user()
+    if not is_guest_user(user):
+        return error_response("Guest demo is only available for the guest account.", 403)
+    language = (request.args.get("language") or "en").strip()
+    try:
+        demo = build_guest_demo_response(language, owner_user_id=user["id"])
+    except Exception as exc:
+        return error_response(f"Failed to load guest demo: {exc}", 500)
+    return jsonify(demo)
 
 
 @app.post("/api/news-search")
@@ -403,6 +503,8 @@ def proxy_news_search():
 @app.post("/api/datasets/inspect")
 @login_required
 def inspect_dataset():
+    if is_guest_user():
+        return error_response("Guest preview is read-only. File upload is disabled.", 403)
     uploaded_file = request.files.get("file")
     if uploaded_file is None or not uploaded_file.filename:
         return error_response("Please upload a CSV or Excel file.")
@@ -427,6 +529,8 @@ def inspect_dataset():
 @app.post("/api/examples/load")
 @login_required
 def load_example_dataset():
+    if is_guest_user():
+        return error_response("Guest preview is locked to the built-in anomaly demo.", 403)
     payload = request.get_json(silent=True) or {}
     example_id = (payload.get("exampleId") or "").strip()
     example = find_example(example_id)
@@ -453,6 +557,8 @@ def load_example_dataset():
 @app.post("/api/analyze")
 @login_required
 def analyze_dataset():
+    if is_guest_user():
+        return error_response("Guest preview cannot start new agent conversations.", 403)
     payload = request.get_json(silent=True) or {}
     dataset_id = payload.get("datasetId")
     selected_tools = payload.get("selectedTools") or []
@@ -570,7 +676,7 @@ def export_chat_pdf():
                 "language": payload.get("language") or "en",
                 "datasetName": payload.get("datasetName") or "",
                 "username": get_current_user()["username"],
-                "title": payload.get("title") or "DataPilot Chat Export",
+                "title": payload.get("title") or "SciPilot Chat Export",
             }
         )
     except RuntimeError as exc:

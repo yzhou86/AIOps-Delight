@@ -21,7 +21,7 @@ const COPY = {
     loadingApp: 'Loading SciPilot...',
     loginTitle: 'Welcome to SciPilot',
     loginSubtitle: 'AI-native data and research copilot for students and researchers.',
-    loginHint: 'Use your assigned account to sign in.',
+    loginHint: 'Preview account: guest / guest. Use your assigned account for full access.',
     audienceBadge: 'For Students & Researchers',
     phaseBadge: 'Phase 1',
     heroTitle: 'Intelligent data Q&A today. Research exploration next.',
@@ -40,6 +40,12 @@ const COPY = {
     signIn: 'Sign in',
     signingIn: 'Signing in...',
     loginError: 'Login failed.',
+    guestBadge: 'Preview',
+    guestModeNotice: 'Guest mode is read-only. Upload, tool changes, and new agent conversations are disabled.',
+    guestDatasetCaption: 'Guest preview is locked to the built-in anomaly demo dataset.',
+    guestPromptPlaceholder: 'Guest preview is read-only. Sign in with a full account to ask your own questions.',
+    guestWelcome: 'Guest preview loaded. You can inspect the fixed anomaly demo, but you cannot upload files or start a new chat.',
+    guestPasswordHint: 'Guest preview accounts cannot change password.',
     currentUser: 'Current user',
     roleAdmin: 'Admin',
     roleUser: 'User',
@@ -166,7 +172,7 @@ const COPY = {
     loadingApp: '正在加载 SciPilot...',
     loginTitle: '欢迎来到 SciPilot',
     loginSubtitle: '面向学生与科研人员的 AI 数据与研究助手。',
-    loginHint: '请使用分配给你的账号登录。',
+    loginHint: '预览账号：guest / guest。完整功能请使用分配给你的正式账号登录。',
     audienceBadge: '学生与研究者',
     phaseBadge: '第一期',
     heroTitle: '先把智能问数做到极致，再走向科研探索。',
@@ -185,6 +191,12 @@ const COPY = {
     signIn: '登录',
     signingIn: '登录中...',
     loginError: '登录失败。',
+    guestBadge: '预览',
+    guestModeNotice: '访客模式为只读预览，不允许上传文件、切换工具或发起新的智能问数对话。',
+    guestDatasetCaption: '访客预览固定锁定在内置异常检测演示数据集。',
+    guestPromptPlaceholder: '访客模式为只读预览。如需自行提问，请使用正式账号登录。',
+    guestWelcome: '访客预览已加载。你可以查看固定的异常检测演示结果，但不能上传文件或发起新的对话。',
+    guestPasswordHint: '访客预览账号不支持修改密码。',
     currentUser: '当前用户',
     roleAdmin: '管理员',
     roleUser: '普通用户',
@@ -446,11 +458,13 @@ const loginFeatures = computed(() => LOGIN_FEATURES[locale.value])
 const usefulLinks = computed(() => USEFUL_LINKS[locale.value])
 const suggestedPrompts = computed(() => SUGGESTED_PROMPTS[locale.value])
 const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const isGuest = computed(() => currentUser.value?.username === 'guest')
 const selectedToolDetails = computed(() => tools.value.filter((tool) => selectedTools.value.includes(tool.id)))
 const selectedToolNames = computed(() => (toolMode.value === 'auto' ? [t('autoModeBadge')] : selectedToolDetails.value.map((tool) => localizedToolName(tool))))
 const datasetColumns = computed(() => datasetMeta.value?.columns || [])
 const selectedExample = computed(() => examples.value.find((example) => example.id === selectedExampleId.value) || null)
 const canAnalyze = computed(() =>
+  !isGuest.value &&
   Boolean(datasetMeta.value?.datasetId) &&
   (toolMode.value === 'auto' || selectedTools.value.length > 0) &&
   prompt.value.trim() &&
@@ -563,6 +577,9 @@ function changeLanguage(nextLocale) {
   if (welcomeMessage) {
     welcomeMessage.text = COPY[nextLocale].welcome
   }
+  if (currentUser.value?.username === 'guest') {
+    loadGuestPreview()
+  }
 }
 
 function formatLabel(value) {
@@ -655,6 +672,10 @@ async function fetchSession() {
 
 async function hydrateAfterLogin() {
   await Promise.all([fetchTools(), fetchExamples()])
+  if (isGuest.value) {
+    await loadGuestPreview()
+    return
+  }
   if (isAdmin.value && appView.value === 'admin') {
     await loadAdminData()
   }
@@ -708,6 +729,45 @@ async function fetchExamples() {
   const { response, data } = await apiFetch('/api/examples')
   if (response.ok) {
     examples.value = data.examples || []
+    if (isGuest.value && data.examples?.length) {
+      selectedExampleId.value = data.examples[0].id
+    }
+  }
+}
+
+async function loadGuestPreview() {
+  if (!isGuest.value) return
+  inspectLoading.value = true
+  try {
+    const { response, data } = await apiFetch(`/api/guest-demo?language=${encodeURIComponent(locale.value)}`)
+    if (!response.ok) {
+      throw new Error(data.error || t('apiError'))
+    }
+    resetMessages()
+    applyDatasetMeta(data.dataset)
+    selectedExampleId.value = data.exampleId || 'service_health_anomalies'
+    toolMode.value = 'manual'
+    selectedTools.value = data.selectedTools || ['data_profile', 'anomaly_detector']
+    prompt.value = ''
+    pushMessage('system', 'info', {
+      text: t('guestWelcome')
+    })
+    pushMessage('assistant', 'dataset', {
+      text: datasetHeadline(data.dataset),
+      dataset: data.dataset
+    })
+    pushMessage('assistant', 'analysis', {
+      text: data.answer || data.summary,
+      answer: data.answer || data.summary,
+      summary: data.summary,
+      analysis: data
+    })
+  } catch (error) {
+    pushMessage('assistant', 'error', {
+      text: error.message || t('apiError')
+    })
+  } finally {
+    inspectLoading.value = false
   }
 }
 
@@ -720,6 +780,7 @@ function applyDatasetMeta(data) {
 }
 
 async function handleFileChange(event) {
+  if (isGuest.value) return
   const file = event.target.files?.[0]
   datasetFile.value = file || null
   selectedExampleId.value = ''
@@ -732,6 +793,7 @@ async function handleFileChange(event) {
 }
 
 async function inspectDataset() {
+  if (isGuest.value) return
   if (!datasetFile.value) return
   inspectLoading.value = true
   const loadingId = pushMessage('assistant', 'loading', {
@@ -767,6 +829,7 @@ async function inspectDataset() {
 }
 
 async function loadExampleDataset() {
+  if (isGuest.value) return
   if (!selectedExampleId.value) return
   datasetFile.value = null
   inspectLoading.value = true
@@ -806,6 +869,7 @@ async function loadExampleDataset() {
 }
 
 async function analyzeDataset() {
+  if (isGuest.value) return
   if (!datasetMeta.value?.datasetId) {
     pushMessage('assistant', 'error', { text: t('uploadFirstError') })
     return
@@ -929,6 +993,11 @@ async function exportChatPdf() {
 }
 
 async function changeOwnPassword() {
+  if (isGuest.value) {
+    accountError.value = t('guestPasswordHint')
+    accountNotice.value = ''
+    return
+  }
   accountLoading.value = true
   accountNotice.value = ''
   accountError.value = ''
@@ -1324,7 +1393,7 @@ onMounted(async () => {
           <button type="button" class="language-chip" :class="{ active: locale === 'en' }" @click="changeLanguage('en')">{{ t('english') }}</button>
           <button type="button" class="language-chip" :class="{ active: locale === 'zh' }" @click="changeLanguage('zh')">{{ t('chinese') }}</button>
         </div>
-        <span class="user-badge">{{ currentUser.username }} · {{ roleChip(currentUser.role) }}</span>
+        <span class="user-badge">{{ currentUser.username }} · {{ isGuest ? t('guestBadge') : roleChip(currentUser.role) }}</span>
         <button type="button" class="ghost-button" @click="logout">{{ t('logout') }}</button>
       </div>
     </header>
@@ -1334,13 +1403,14 @@ onMounted(async () => {
         <section class="panel-card">
           <div class="card-heading">
             <h2>{{ t('tools') }}</h2>
-            <span class="card-pill">{{ toolMode === 'auto' ? t('autoModeBadge') : `${selectedTools.length} ${t('activeShort')}` }}</span>
+            <span class="card-pill">{{ isGuest ? t('guestBadge') : toolMode === 'auto' ? t('autoModeBadge') : `${selectedTools.length} ${t('activeShort')}` }}</span>
           </div>
           <div class="tool-mode-switch">
-            <button type="button" class="mode-chip" :class="{ active: toolMode === 'auto' }" @click="setToolMode('auto')">{{ t('autoMode') }}</button>
-            <button type="button" class="mode-chip" :class="{ active: toolMode === 'manual' }" @click="setToolMode('manual')">{{ t('manualMode') }}</button>
+            <button type="button" class="mode-chip" :class="{ active: toolMode === 'auto' }" :disabled="isGuest" @click="setToolMode('auto')">{{ t('autoMode') }}</button>
+            <button type="button" class="mode-chip" :class="{ active: toolMode === 'manual' }" :disabled="isGuest" @click="setToolMode('manual')">{{ t('manualMode') }}</button>
           </div>
-          <p v-if="toolMode === 'auto'" class="hint-text">{{ t('autoModeHint') }}</p>
+          <p v-if="isGuest" class="hint-text">{{ t('guestModeNotice') }}</p>
+          <p v-else-if="toolMode === 'auto'" class="hint-text">{{ t('autoModeHint') }}</p>
           <div class="sidebar-tool-list">
             <button
               v-for="tool in tools"
@@ -1348,7 +1418,7 @@ onMounted(async () => {
               type="button"
               class="sidebar-tool"
               :class="{ active: toolMode === 'manual' && selectedTools.includes(tool.id), preview: toolMode === 'auto' }"
-              :disabled="toolMode === 'auto'"
+              :disabled="toolMode === 'auto' || isGuest"
               @click="toggleTool(tool.id)"
             >
               <span>{{ localizedToolName(tool) }}</span>
@@ -1364,20 +1434,20 @@ onMounted(async () => {
           </div>
 
           <label class="attach-drop">
-            <input type="file" accept=".csv,.xls,.xlsx" @change="handleFileChange" />
+            <input type="file" accept=".csv,.xls,.xlsx" :disabled="isGuest" @change="handleFileChange" />
             <span class="attach-title">{{ inspectLoading ? t('attachInspecting') : t('attachTitle') }}</span>
-            <span class="attach-caption">{{ t('attachCaption') }}</span>
+            <span class="attach-caption">{{ isGuest ? t('guestDatasetCaption') : t('attachCaption') }}</span>
           </label>
 
           <div class="example-picker">
             <label>
               <span class="fact-label">{{ t('examples') }}</span>
-              <select v-model="selectedExampleId" :disabled="inspectLoading || !examples.length">
+              <select v-model="selectedExampleId" :disabled="inspectLoading || !examples.length || isGuest">
                 <option value="">{{ t('chooseExample') }}</option>
                 <option v-for="example in examples" :key="example.id" :value="example.id">{{ localizedExampleLabel(example) }}</option>
               </select>
             </label>
-            <button type="button" class="secondary-button" :disabled="inspectLoading || !selectedExampleId" @click="loadExampleDataset">
+            <button type="button" class="secondary-button" :disabled="inspectLoading || !selectedExampleId || isGuest" @click="loadExampleDataset">
               {{ inspectLoading ? t('loading') : t('loadExample') }}
             </button>
           </div>
@@ -1409,7 +1479,7 @@ onMounted(async () => {
             <h2>{{ t('promptIdeas') }}</h2>
           </div>
           <div class="link-stack">
-            <button v-for="item in suggestedPrompts" :key="item" type="button" class="prompt-link" @click="choosePrompt(item)">
+            <button v-for="item in suggestedPrompts" :key="item" type="button" class="prompt-link" :disabled="isGuest" @click="choosePrompt(item)">
               {{ item }}
             </button>
           </div>
@@ -1427,7 +1497,7 @@ onMounted(async () => {
               <button type="button" class="secondary-button export-button" :disabled="exportLoading || !messages.length" @click="exportChatPdf">
                 {{ exportLoading ? t('exportingPdf') : t('exportPdf') }}
               </button>
-              <span class="card-pill">{{ toolMode === 'auto' ? t('autoModeBadge') : `${selectedTools.length} ${t('activeShort')}` }}</span>
+              <span class="card-pill">{{ isGuest ? t('guestBadge') : toolMode === 'auto' ? t('autoModeBadge') : `${selectedTools.length} ${t('activeShort')}` }}</span>
               <span class="card-pill muted">{{ datasetMeta ? datasetMeta.fileName : t('noDatasetYet') }}</span>
             </div>
           </div>
@@ -1451,8 +1521,8 @@ onMounted(async () => {
                     <span>{{ message.dataset.textColumns.length }} {{ t('text') }}</span>
                     <span>{{ message.dataset.datetimeColumns.length }} {{ t('datetime') }}</span>
                   </div>
-                  <div class="table-shell">
-                    <table>
+                  <div class="table-shell preview-table-shell">
+                    <table class="preview-table">
                       <thead>
                         <tr>
                           <th v-for="column in message.dataset.preview.columns" :key="`preview-${column}`">{{ column }}</th>
@@ -1626,18 +1696,19 @@ onMounted(async () => {
           </div>
 
           <form class="composer" @submit.prevent="analyzeDataset">
+            <p v-if="isGuest" class="hint-text">{{ t('guestModeNotice') }}</p>
             <div class="composer-topline">
               <label class="attach-inline">
-                <input type="file" accept=".csv,.xls,.xlsx" @change="handleFileChange" />
+                <input type="file" accept=".csv,.xls,.xlsx" :disabled="isGuest" @change="handleFileChange" />
                 <span>{{ inspectLoading ? t('attachInspecting') : t('attachFile') }}</span>
               </label>
-              <button type="button" class="attach-inline attach-inline-secondary" :disabled="inspectLoading || !selectedExampleId" @click="loadExampleDataset">
+              <button type="button" class="attach-inline attach-inline-secondary" :disabled="inspectLoading || !selectedExampleId || isGuest" @click="loadExampleDataset">
                 <span>{{ inspectLoading ? t('loadingExample') : t('useSelectedExample') }}</span>
               </button>
               <span class="composer-file">{{ datasetMeta ? datasetMeta.fileName : t('noDatasetAttached') }}</span>
             </div>
 
-            <textarea v-model="prompt" class="composer-input" rows="3" :placeholder="t('promptPlaceholder')" />
+            <textarea v-model="prompt" class="composer-input" rows="3" :disabled="isGuest" :placeholder="isGuest ? t('guestPromptPlaceholder') : t('promptPlaceholder')" />
 
             <div class="composer-footer">
               <div class="selected-tool-strip">
@@ -1654,21 +1725,21 @@ onMounted(async () => {
         <section class="panel-card">
           <div class="card-heading">
             <h2>{{ t('myAccount') }}</h2>
-            <span class="card-pill">{{ roleChip(currentUser.role) }}</span>
+            <span class="card-pill">{{ isGuest ? t('guestBadge') : roleChip(currentUser.role) }}</span>
           </div>
           <p class="hint-text">{{ currentUser.username }}</p>
-          <p class="hint-text">{{ t('selfPasswordHint') }}</p>
+          <p class="hint-text">{{ isGuest ? t('guestPasswordHint') : t('selfPasswordHint') }}</p>
           <div class="form-grid compact">
             <label>
               <span>{{ t('currentPassword') }}</span>
-              <input v-model="accountCurrentPassword" type="password" />
+              <input v-model="accountCurrentPassword" type="password" :disabled="isGuest" />
             </label>
             <label>
               <span>{{ t('newPassword') }}</span>
-              <input v-model="accountNewPassword" type="password" />
+              <input v-model="accountNewPassword" type="password" :disabled="isGuest" />
             </label>
           </div>
-          <button type="button" class="primary-button" :disabled="accountLoading" @click="changeOwnPassword">
+          <button type="button" class="primary-button" :disabled="accountLoading || isGuest" @click="changeOwnPassword">
             {{ accountLoading ? t('saving') : t('savePassword') }}
           </button>
           <p v-if="accountNotice" class="form-success">{{ accountNotice }}</p>
@@ -1680,24 +1751,24 @@ onMounted(async () => {
             <h2>{{ t('analysisSettings') }}</h2>
           </div>
           <p v-if="!datasetMeta" class="hint-text">{{ t('settingsHint') }}</p>
-          <div class="settings-grid" :class="{ disabled: !datasetMeta }">
+          <div class="settings-grid" :class="{ disabled: !datasetMeta || isGuest }">
             <label>
               <span>{{ t('targetColumn') }}</span>
-              <select v-model="targetColumn" :disabled="!datasetMeta">
+              <select v-model="targetColumn" :disabled="!datasetMeta || isGuest">
                 <option value="">{{ t('optional') }}</option>
                 <option v-for="column in datasetColumns" :key="`target-${column.name}`" :value="column.name">{{ column.name }} ({{ formatLabel(column.kind) }})</option>
               </select>
             </label>
             <label>
               <span>{{ t('timeColumn') }}</span>
-              <select v-model="timeColumn" :disabled="!datasetMeta">
+              <select v-model="timeColumn" :disabled="!datasetMeta || isGuest">
                 <option value="">{{ t('optional') }}</option>
                 <option v-for="column in datasetColumns" :key="`time-${column.name}`" :value="column.name">{{ column.name }} ({{ formatLabel(column.kind) }})</option>
               </select>
             </label>
             <label>
               <span>{{ t('valueColumn') }}</span>
-              <select v-model="valueColumn" :disabled="!datasetMeta">
+              <select v-model="valueColumn" :disabled="!datasetMeta || isGuest">
                 <option value="">{{ t('optional') }}</option>
                 <option v-for="column in (datasetMeta ? datasetMeta.numericColumns : [])" :key="`value-${column}`" :value="column">{{ column }}</option>
               </select>
@@ -1711,6 +1782,7 @@ onMounted(async () => {
                   type="button"
                   class="mini-chip"
                   :class="{ active: textColumns.includes(column) }"
+                  :disabled="isGuest"
                   @click="textColumns = textColumns.includes(column) ? textColumns.filter((item) => item !== column) : [...textColumns, column]"
                 >
                   {{ column }}
@@ -2408,12 +2480,15 @@ button:disabled {
   padding-right: 0.15rem;
   display: grid;
   gap: 0.7rem;
+  align-content: start;
+  grid-auto-rows: max-content;
 }
 
 .message-row {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 0.6rem;
+  align-items: start;
 }
 
 .message-avatar {
@@ -2465,6 +2540,10 @@ button:disabled {
   border-radius: 12px;
 }
 
+.preview-table-shell {
+  max-height: 240px;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -2481,6 +2560,20 @@ td {
 
 th {
   background: rgba(246, 243, 238, 0.92);
+}
+
+.preview-table {
+  table-layout: fixed;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 0.38rem 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+  max-width: 180px;
 }
 
 .analysis-tools,
