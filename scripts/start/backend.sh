@@ -7,5 +7,5 @@ source "$SCRIPT_DIR/common.sh"
 
 echo "Building frontend assets for the unified Flask app..."
 build_frontend_here
-echo "Starting unified AIOps Delight app on http://127.0.0.1:5001 ..."
+echo "Starting unified AIOps Delight app on http://127.0.0.1:5005 ..."
 run_backend_here

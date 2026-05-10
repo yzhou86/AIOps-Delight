@@ -16,7 +16,7 @@ FROM python:3.11-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PORT=5001
+    PORT=5005
 
 WORKDIR /app
 
@@ -33,8 +33,8 @@ COPY examples /app/examples
 COPY README.md /app/README.md
 COPY --from=frontend-builder /build/frontend/dist /app/frontend/dist
 
-RUN mkdir -p /app/backend/uploads
+RUN mkdir -p /app/backend/uploads /app/backend/data
 
-EXPOSE 5001
+EXPOSE 5005
 
-CMD ["sh", "-c", "gunicorn --chdir backend --workers ${GUNICORN_WORKERS:-2} --threads ${GUNICORN_THREADS:-4} --timeout ${GUNICORN_TIMEOUT:-120} --bind 0.0.0.0:${PORT:-5001} app:app"]
+CMD ["sh", "-c", "gunicorn --chdir backend --workers ${GUNICORN_WORKERS:-2} --threads ${GUNICORN_THREADS:-4} --timeout ${GUNICORN_TIMEOUT:-120} --bind 0.0.0.0:${PORT:-5005} app:app"]

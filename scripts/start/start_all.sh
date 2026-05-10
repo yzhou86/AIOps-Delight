@@ -8,5 +8,5 @@ source "$SCRIPT_DIR/common.sh"
 echo "Building frontend assets..."
 build_frontend_here
 echo "Starting unified AIOps Delight app..."
-echo "App: http://127.0.0.1:5001"
+echo "App: http://127.0.0.1:5005"
 run_backend_here

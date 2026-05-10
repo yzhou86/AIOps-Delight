@@ -9,6 +9,7 @@ __pycache__/
 *.pyo
 *.pyd
 backend/uploads/
+backend/data/
 chroma_db/
 frontend/node_modules/
 frontend/dist/

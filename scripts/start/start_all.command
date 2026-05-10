@@ -19,4 +19,4 @@ tell application "Terminal"
 end tell
 EOF
 
-echo "App: http://127.0.0.1:5001"
+echo "App: http://127.0.0.1:5005"

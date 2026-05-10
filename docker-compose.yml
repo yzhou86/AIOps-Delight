@@ -6,14 +6,15 @@ services:
     image: datapilot:latest
     container_name: datapilot
     ports:
-      - "${PORT:-5001}:5001"
+      - "${PORT:-5005}:5005"
     env_file:
       - .env
     environment:
-      PORT: 5001
+      PORT: 5005
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
     volumes:
       - ./backend/uploads:/app/backend/uploads
+      - ./backend/data:/app/backend/data
     restart: unless-stopped

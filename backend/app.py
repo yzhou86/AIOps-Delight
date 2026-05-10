@@ -1,34 +1,56 @@
-import os
-import uuid
-from pathlib import Path
 import json
+import os
 import urllib.request
+import uuid
+from functools import wraps
+from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory
-from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from flask import Flask, g, jsonify, request, send_from_directory, session
+from werkzeug.utils import secure_filename
+
+try:
+    from analysis_tools import (
+        auto_select_tools,
+        build_agent_answer,
+        build_agent_summary,
+        inspect_dataframe,
+        load_dataframe,
+        run_tool,
+        serialize_tool_catalog,
+    )
+    from dao import SqliteDao
+    from pdf_export import build_chat_pdf
+except ModuleNotFoundError:
+    from .analysis_tools import (
+        auto_select_tools,
+        build_agent_answer,
+        build_agent_summary,
+        inspect_dataframe,
+        load_dataframe,
+        run_tool,
+        serialize_tool_catalog,
+    )
+    from .dao import SqliteDao
+    from .pdf_export import build_chat_pdf
+
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-
-from analysis_tools import (
-    build_agent_answer,
-    build_agent_summary,
-    inspect_dataframe,
-    load_dataframe,
-    run_tool,
-    serialize_tool_catalog,
-)
-
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
 FRONTEND_DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
 UPLOAD_DIR = BASE_DIR / "uploads"
+DATA_DIR = BASE_DIR / "data"
+DB_PATH = DATA_DIR / "datapilot.db"
 EXAMPLES_DIR = PROJECT_ROOT / "examples"
+
 UPLOAD_DIR.mkdir(exist_ok=True)
+DATA_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".csv", ".xls", ".xlsx"}
 DATASET_STORE = {}
+
 EXAMPLE_CATALOG = [
     {
         "id": "ops_capacity_forecast",
@@ -74,7 +96,15 @@ EXAMPLE_CATALOG = [
     },
 ]
 
+dao = SqliteDao(DB_PATH)
+dao.init_db()
+
 app = Flask(__name__, static_folder=str(FRONTEND_DIST_DIR), static_url_path="")
+app.secret_key = os.getenv("APP_SECRET_KEY", "datapilot-dev-secret-change-me")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
 
 
 def allowed_file(filename):
@@ -111,7 +141,50 @@ def find_example(example_id):
     return None
 
 
-def register_dataset(file_path, filename, source="upload", example_id=None):
+def serialize_user(user):
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "role": user["role"],
+        "createdAt": user.get("created_at"),
+        "updatedAt": user.get("updated_at"),
+    }
+
+
+def get_current_user():
+    if hasattr(g, "current_user"):
+        return g.current_user
+    user_id = session.get("user_id")
+    user = dao.get_user_by_id(user_id) if user_id else None
+    g.current_user = user
+    return user
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return error_response("Please log in first.", 401)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return error_response("Please log in first.", 401)
+        if user["role"] != "admin":
+            return error_response("Admin access is required.", 403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def register_dataset(file_path, filename, owner_user_id, source="upload", example_id=None):
     dataset_id = str(uuid.uuid4())
     dataframe = load_dataframe(file_path)
     dataset_info = inspect_dataframe(dataframe, filename=filename, dataset_id=dataset_id)
@@ -127,8 +200,43 @@ def register_dataset(file_path, filename, source="upload", example_id=None):
         "chat_history": [],
         "source": source,
         "example_id": example_id,
+        "owner_user_id": owner_user_id,
     }
     return dataset_info
+
+
+def normalize_llm_payload(payload):
+    provider = str(payload.get("provider") or "auto").strip().lower()
+    if provider not in {"auto", "qwen", "openai_compatible"}:
+        provider = "auto"
+    return {
+        "provider": provider,
+        "qwen_api_key": str(payload.get("qwenApiKey") or payload.get("qwen_api_key") or "").strip(),
+        "qwen_model": str(payload.get("qwenModel") or payload.get("qwen_model") or "qwen-turbo").strip() or "qwen-turbo",
+        "openai_api_key": str(payload.get("openaiApiKey") or payload.get("openai_api_key") or "").strip(),
+        "openai_base_url": str(payload.get("openaiBaseUrl") or payload.get("openai_base_url") or "https://api.openai.com/v1").strip()
+        or "https://api.openai.com/v1",
+        "openai_model": str(payload.get("openaiModel") or payload.get("openai_model") or "gpt-4o-mini").strip()
+        or "gpt-4o-mini",
+    }
+
+
+def build_runtime_llm_config():
+    stored = dao.get_llm_config()
+    return {
+        "provider": stored.get("provider") or os.getenv("LLM_PROVIDER", "auto"),
+        "qwen_api_key": stored.get("qwen_api_key") or os.getenv("DASHSCOPE_API_KEY", ""),
+        "qwen_model": stored.get("qwen_model") or os.getenv("DASHSCOPE_MODEL", "qwen-turbo"),
+        "openai_api_key": stored.get("openai_api_key")
+        or os.getenv("OPENAI_COMPATIBLE_API_KEY", "")
+        or os.getenv("OPENAI_API_KEY", ""),
+        "openai_base_url": stored.get("openai_base_url")
+        or os.getenv("OPENAI_COMPATIBLE_BASE_URL", "")
+        or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        "openai_model": stored.get("openai_model")
+        or os.getenv("OPENAI_COMPATIBLE_MODEL", "")
+        or os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+    }
 
 
 @app.get("/api/health")
@@ -136,17 +244,123 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@app.get("/api/auth/me")
+def get_me():
+    user = get_current_user()
+    return jsonify({"user": serialize_user(user) if user else None})
+
+
+@app.post("/api/auth/login")
+def login():
+    payload = request.get_json(silent=True) or {}
+    username = str(payload.get("username") or "").strip()
+    password = str(payload.get("password") or "")
+    if not username or not password:
+        return error_response("Username and password are required.")
+
+    user = dao.verify_user(username, password)
+    if not user:
+        return error_response("Invalid username or password.", 401)
+
+    session.clear()
+    session["user_id"] = user["id"]
+    return jsonify({"user": serialize_user(user)})
+
+
+@app.post("/api/auth/logout")
+@login_required
+def logout():
+    session.clear()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/auth/change-password")
+@login_required
+def change_own_password():
+    payload = request.get_json(silent=True) or {}
+    current_password = str(payload.get("currentPassword") or "")
+    new_password = str(payload.get("newPassword") or "")
+    if not current_password or not new_password:
+        return error_response("Current password and new password are required.")
+    if len(new_password) < 4:
+        return error_response("New password must be at least 4 characters long.")
+
+    user = get_current_user()
+    if not dao.verify_user(user["username"], current_password):
+        return error_response("Current password is incorrect.", 403)
+
+    updated = dao.update_user_password(user["id"], new_password)
+    g.current_user = updated
+    return jsonify({"user": serialize_user(updated)})
+
+
+@app.get("/api/admin/users")
+@admin_required
+def get_users():
+    return jsonify({"users": dao.list_users()})
+
+
+@app.post("/api/admin/users")
+@admin_required
+def create_user():
+    payload = request.get_json(silent=True) or {}
+    username = str(payload.get("username") or "").strip()
+    password = str(payload.get("password") or "")
+    if not username or not password:
+        return error_response("Username and password are required.")
+    if len(password) < 4:
+        return error_response("Password must be at least 4 characters long.")
+    if dao.get_user_by_username(username):
+        return error_response("That username already exists.")
+
+    user = dao.create_user(username, password, role="user")
+    return jsonify({"user": serialize_user(user)}), 201
+
+
+@app.put("/api/admin/users/<int:user_id>/password")
+@admin_required
+def update_user_password(user_id):
+    payload = request.get_json(silent=True) or {}
+    password = str(payload.get("password") or "")
+    if len(password) < 4:
+        return error_response("Password must be at least 4 characters long.")
+
+    user = dao.get_user_by_id(user_id)
+    if not user:
+        return error_response("User not found.", 404)
+
+    updated = dao.update_user_password(user_id, password)
+    return jsonify({"user": serialize_user(updated)})
+
+
+@app.get("/api/admin/llm-config")
+@admin_required
+def get_llm_config():
+    return jsonify({"config": dao.get_llm_config()})
+
+
+@app.put("/api/admin/llm-config")
+@admin_required
+def update_llm_config():
+    payload = request.get_json(silent=True) or {}
+    config = dao.update_llm_config(normalize_llm_payload(payload))
+    return jsonify({"config": config})
+
+
 @app.get("/api/tools")
+@login_required
 def get_tools():
     return jsonify({"tools": serialize_tool_catalog()})
 
 
 @app.get("/api/examples")
+@login_required
 def get_examples():
     return jsonify({"examples": serialize_examples()})
 
 
 @app.post("/api/news-search")
+@login_required
 def proxy_news_search():
     payload = request.get_json(silent=True) or {}
     keyword = (payload.get("keyword") or "").strip()
@@ -187,6 +401,7 @@ def proxy_news_search():
 
 
 @app.post("/api/datasets/inspect")
+@login_required
 def inspect_dataset():
     uploaded_file = request.files.get("file")
     if uploaded_file is None or not uploaded_file.filename:
@@ -202,7 +417,7 @@ def inspect_dataset():
     uploaded_file.save(file_path)
 
     try:
-        dataset_info = register_dataset(file_path, filename, source="upload")
+        dataset_info = register_dataset(file_path, filename, owner_user_id=get_current_user()["id"], source="upload")
     except Exception as exc:
         file_path.unlink(missing_ok=True)
         return error_response(str(exc))
@@ -210,6 +425,7 @@ def inspect_dataset():
 
 
 @app.post("/api/examples/load")
+@login_required
 def load_example_dataset():
     payload = request.get_json(silent=True) or {}
     example_id = (payload.get("exampleId") or "").strip()
@@ -225,6 +441,7 @@ def load_example_dataset():
         dataset_info = register_dataset(
             file_path,
             example["fileName"],
+            owner_user_id=get_current_user()["id"],
             source="example",
             example_id=example_id,
         )
@@ -234,19 +451,23 @@ def load_example_dataset():
 
 
 @app.post("/api/analyze")
+@login_required
 def analyze_dataset():
     payload = request.get_json(silent=True) or {}
     dataset_id = payload.get("datasetId")
     selected_tools = payload.get("selectedTools") or []
+    tool_mode = (payload.get("toolMode") or "manual").strip().lower()
     prompt = (payload.get("prompt") or "").strip()
     language = (payload.get("language") or "en").strip()
 
     if not dataset_id or dataset_id not in DATASET_STORE:
         return error_response("Dataset not found. Upload the file again.", 404)
-    if not selected_tools:
+    if tool_mode != "auto" and not selected_tools:
         return error_response("Select at least one analysis tool.")
 
     dataset_record = DATASET_STORE[dataset_id]
+    if dataset_record.get("owner_user_id") != get_current_user()["id"]:
+        return error_response("You do not have access to this dataset.", 403)
 
     try:
         dataframe = load_dataframe(dataset_record["path"])
@@ -268,6 +489,17 @@ def analyze_dataset():
         "dataset_info": dataset_info,
     }
 
+    if tool_mode == "auto":
+        auto_plan = auto_select_tools(dataset_info, prompt, context)
+        selected_tools = auto_plan["selected_tools"]
+        context["target_column"] = context["target_column"] or auto_plan["target_column"]
+        context["time_column"] = context["time_column"] or auto_plan["time_column"]
+        context["value_column"] = context["value_column"] or auto_plan["value_column"]
+        context["text_columns"] = context["text_columns"] or auto_plan["text_columns"]
+
+    if not selected_tools:
+        return error_response("No suitable analysis tools were found for the current dataset and question.")
+
     results = []
     for tool_id in selected_tools:
         try:
@@ -286,8 +518,22 @@ def analyze_dataset():
             )
 
     chat_history = dataset_record.setdefault("chat_history", [])
-    answer = build_agent_answer(dataset_info, prompt, results, chat_history, language=language)
-    summary = build_agent_summary(dataset_info, prompt, results, language=language)
+    llm_settings = build_runtime_llm_config()
+    answer = build_agent_answer(
+        dataset_info,
+        prompt,
+        results,
+        chat_history,
+        language=language,
+        llm_settings=llm_settings,
+    )
+    summary = build_agent_summary(
+        dataset_info,
+        prompt,
+        results,
+        language=language,
+        llm_settings=llm_settings,
+    )
 
     if prompt:
         chat_history.append({"role": "user", "content": prompt})
@@ -302,7 +548,46 @@ def analyze_dataset():
             "summary": summary,
             "results": results,
             "selectedTools": selected_tools,
+            "toolMode": tool_mode,
+            "resolvedContext": {
+                "targetColumn": context.get("target_column"),
+                "timeColumn": context.get("time_column"),
+                "valueColumn": context.get("value_column"),
+                "textColumns": context.get("text_columns") or [],
+            },
         }
+    )
+
+
+@app.post("/api/export-chat-pdf")
+@login_required
+def export_chat_pdf():
+    payload = request.get_json(silent=True) or {}
+    try:
+        pdf_bytes = build_chat_pdf(
+            {
+                "messages": payload.get("messages") or [],
+                "language": payload.get("language") or "en",
+                "datasetName": payload.get("datasetName") or "",
+                "username": get_current_user()["username"],
+                "title": payload.get("title") or "DataPilot Chat Export",
+            }
+        )
+    except RuntimeError as exc:
+        return error_response(str(exc), 500)
+    except Exception as exc:
+        return error_response(f"Failed to export PDF: {exc}", 500)
+
+    filename = secure_filename(payload.get("fileName") or "datapilot-chat-export.pdf")
+    if not filename.lower().endswith(".pdf"):
+        filename = f"{filename}.pdf"
+    return app.response_class(
+        response=pdf_bytes,
+        status=200,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        },
     )
 
 
@@ -327,5 +612,5 @@ def serve_frontend(path):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "5001"))
+    port = int(os.getenv("PORT", "5005"))
     app.run(host="0.0.0.0", port=port, debug=True)

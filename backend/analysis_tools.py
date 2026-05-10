@@ -2,6 +2,8 @@ import json
 import math
 import os
 from pathlib import Path
+import urllib.error
+import urllib.request
 
 import numpy as np
 import pandas as pd
@@ -87,6 +89,93 @@ CHART_COLORS = ["#2c8f6b", "#db6d45", "#4a6cf7", "#c28b1c", "#8a5adf", "#0f766e"
 
 def serialize_tool_catalog():
     return TOOL_CATALOG
+
+
+def auto_select_tools(dataset_info, prompt="", context=None):
+    context = context or {}
+    lowered_prompt = (prompt or "").strip().lower()
+    columns = dataset_info.get("columns") or []
+    numeric_columns = dataset_info.get("numericColumns") or []
+    text_columns = dataset_info.get("textColumns") or []
+    datetime_columns = dataset_info.get("datetimeColumns") or []
+    categorical_columns = dataset_info.get("categoricalColumns") or []
+
+    def has_any(*keywords):
+        return any(keyword in lowered_prompt for keyword in keywords if keyword)
+
+    inferred_target = context.get("target_column") or _pick_target_column(dataset_info)
+    inferred_time = context.get("time_column") or _pick_datetime_column(dataset_info)
+    inferred_value = context.get("value_column") or _pick_numeric_column(dataset_info)
+    inferred_text = list(context.get("text_columns") or [])
+    if not inferred_text and text_columns:
+        inferred_text = text_columns[: min(2, len(text_columns))]
+
+    selected = []
+
+    def add(tool_id, condition=True):
+        if condition and tool_id not in selected:
+            selected.append(tool_id)
+
+    add("data_profile")
+
+    wants_forecast = has_any(
+        "forecast", "trend", "future", "predict", "projection", "timeseries",
+        "预测", "趋势", "未来", "时序", "走势",
+    )
+    wants_anomaly = has_any(
+        "anomaly", "anomalies", "outlier", "outliers", "spike", "unusual", "incident",
+        "异常", "离群", "波动", "尖峰", "突增", "问题",
+    )
+    wants_correlation = has_any(
+        "correlation", "relationship", "related", "factor", "driver", "impact", "compare", "signal",
+        "相关", "关系", "影响", "驱动", "因素", "对比", "信号",
+    )
+    wants_clustering = has_any(
+        "cluster", "segment", "group", "grouping", "cohort",
+        "聚类", "分群", "分组", "群组", "客群",
+    )
+    wants_text = has_any(
+        "text", "topic", "topics", "theme", "themes", "logs", "ticket", "summary", "intent",
+        "文本", "主题", "日志", "工单", "摘要", "意图",
+    )
+    wants_classification = has_any(
+        "classify", "classification", "classifier", "target", "label", "fraud", "churn", "risk",
+        "分类", "标签", "目标列", "欺诈", "流失", "风险",
+    )
+
+    if inferred_time and inferred_value and (wants_forecast or (datetime_columns and len(numeric_columns) >= 1 and has_any("capacity", "load", "latency", "cost", "usage", "资源", "容量", "时延", "成本"))):
+        add("forecast_baseline")
+
+    if len(numeric_columns) >= 1 and dataset_info.get("rowCount", 0) >= 20 and (wants_anomaly or len(numeric_columns) >= 2):
+        add("anomaly_detector")
+
+    if len(numeric_columns) >= 2 and (wants_correlation or (not wants_text and not wants_classification)):
+        add("correlation_explorer")
+
+    if len(numeric_columns) >= 1 and dataset_info.get("rowCount", 0) >= 8 and wants_clustering:
+        add("kmeans_segmentation")
+
+    if inferred_text and dataset_info.get("rowCount", 0) >= 8 and (wants_text or ("log" in lowered_prompt) or ("ticket" in lowered_prompt)):
+        add("text_clusterer")
+
+    if inferred_target and _target_class_count(columns, inferred_target) and (wants_classification or context.get("target_column")):
+        add("classification_explorer", _target_class_count(columns, inferred_target) <= 12)
+
+    if len(selected) == 1:
+        add("correlation_explorer", len(numeric_columns) >= 2)
+        add("anomaly_detector", len(numeric_columns) >= 1 and dataset_info.get("rowCount", 0) >= 20)
+        add("text_clusterer", bool(inferred_text) and dataset_info.get("rowCount", 0) >= 8)
+        add("forecast_baseline", bool(inferred_time and inferred_value))
+        add("classification_explorer", bool(context.get("target_column") and inferred_target and _target_class_count(columns, inferred_target) and _target_class_count(columns, inferred_target) <= 12))
+        add("kmeans_segmentation", len(numeric_columns) >= 1 and dataset_info.get("rowCount", 0) >= 8)
+
+    return {
+        "selected_tools": selected[:4],
+        "target_column": inferred_target,
+        "time_column": inferred_time,
+        "value_column": inferred_value,
+        "text_columns": inferred_text,
+    }
 
 
 def load_dataframe(file_path):
@@ -971,7 +1060,7 @@ def normalize_language(language):
     return "zh" if value.startswith("zh") else "en"
 
 
-def build_agent_summary(dataset_info, prompt, results, language="en"):
+def build_agent_summary(dataset_info, prompt, results, language="en", llm_settings=None):
     language = normalize_language(language)
     successful = [result for result in results if result["status"] == "ok"]
     skipped = [result for result in results if result["status"] == "skipped"]
@@ -1005,14 +1094,14 @@ def build_agent_summary(dataset_info, prompt, results, language="en"):
             for result in skipped:
                 fallback_lines.append(f"- {result['toolName']}: {result['headline']}")
 
-    llm_summary = _maybe_build_llm_summary(dataset_info, prompt, results, language)
+    llm_summary = _maybe_build_llm_summary(dataset_info, prompt, results, language, llm_settings)
     return llm_summary or "\n".join(fallback_lines)
 
 
-def build_agent_answer(dataset_info, prompt, results, chat_history=None, language="en"):
+def build_agent_answer(dataset_info, prompt, results, chat_history=None, language="en", llm_settings=None):
     language = normalize_language(language)
     fallback_answer = _build_fallback_answer(dataset_info, prompt, results, language)
-    llm_answer = _maybe_build_llm_answer(dataset_info, prompt, results, chat_history or [], language)
+    llm_answer = _maybe_build_llm_answer(dataset_info, prompt, results, chat_history or [], language, llm_settings)
     return llm_answer or fallback_answer
 
 
@@ -1070,9 +1159,9 @@ def _build_fallback_answer(dataset_info, prompt, results, language):
     return "\n".join(lines)
 
 
-def _maybe_build_llm_summary(dataset_info, prompt, results, language):
-    api_key = os.getenv("DASHSCOPE_API_KEY")
-    if not api_key or ChatTongyi is None:
+def _maybe_build_llm_summary(dataset_info, prompt, results, language, llm_settings=None):
+    provider = _resolve_llm_provider(llm_settings)
+    if not provider:
         return None
 
     compact_results = []
@@ -1087,7 +1176,6 @@ def _maybe_build_llm_summary(dataset_info, prompt, results, language):
             }
         )
 
-    model = ChatTongyi(api_key=api_key, model=os.getenv("DASHSCOPE_MODEL", "qwen-turbo"))
     if language == "zh":
         summary_prompt = (
             "你是一名 AIOps 数据分析助手。请用简洁、自然的简体中文总结这次数据集分析。"
@@ -1104,16 +1192,12 @@ def _maybe_build_llm_summary(dataset_info, prompt, results, language):
             f"Dataset info: {json.dumps(dataset_info, ensure_ascii=False)}\n"
             f"Tool results: {json.dumps(compact_results, ensure_ascii=False)}"
         )
-    try:
-        response = model.invoke(summary_prompt)
-        return getattr(response, "content", None) or str(response)
-    except Exception:
-        return None
+    return _invoke_llm_prompt(summary_prompt, provider)
 
 
-def _maybe_build_llm_answer(dataset_info, prompt, results, chat_history, language):
-    api_key = os.getenv("DASHSCOPE_API_KEY")
-    if not api_key or ChatTongyi is None or not prompt:
+def _maybe_build_llm_answer(dataset_info, prompt, results, chat_history, language, llm_settings=None):
+    provider = _resolve_llm_provider(llm_settings)
+    if not provider or not prompt:
         return None
 
     compact_results = []
@@ -1129,7 +1213,6 @@ def _maybe_build_llm_answer(dataset_info, prompt, results, chat_history, languag
         )
 
     history_window = chat_history[-6:]
-    model = ChatTongyi(api_key=api_key, model=os.getenv("DASHSCOPE_MODEL", "qwen-turbo"))
     if language == "zh":
         answer_prompt = (
             "你是一名位于 AIOps 分析工作台中的 AI 数据分析助手。"
@@ -1153,11 +1236,148 @@ def _maybe_build_llm_answer(dataset_info, prompt, results, chat_history, languag
             f"Tool results: {json.dumps(compact_results, ensure_ascii=False)}\n"
             f"User question: {prompt}"
         )
+    return _invoke_llm_prompt(answer_prompt, provider)
+
+
+def _resolve_llm_provider(llm_settings=None):
+    provider = _llm_setting(llm_settings, "provider", ["LLM_PROVIDER"], "auto").strip().lower()
+    if provider in {"qwen", "dashscope"}:
+        api_key = _llm_setting(llm_settings, "qwen_api_key", ["DASHSCOPE_API_KEY"])
+        if not api_key or ChatTongyi is None:
+            return None
+        return {
+            "provider": "qwen",
+            "api_key": api_key,
+            "model": _llm_setting(llm_settings, "qwen_model", ["DASHSCOPE_MODEL"], "qwen-turbo") or "qwen-turbo",
+        }
+
+    if provider in {"openai_compatible", "openai-compatible", "openai"}:
+        api_key = _get_openai_compatible_api_key(llm_settings)
+        base_url = _get_openai_compatible_base_url(llm_settings)
+        if not api_key or not base_url:
+            return None
+        return {
+            "provider": "openai_compatible",
+            "api_key": api_key,
+            "base_url": _normalize_openai_compatible_url(base_url),
+            "model": _get_openai_compatible_model(llm_settings),
+        }
+
+    qwen_provider = _resolve_llm_provider_from_auto_qwen(llm_settings)
+    if qwen_provider:
+        return qwen_provider
+    return _resolve_llm_provider_from_auto_openai(llm_settings)
+
+
+def _resolve_llm_provider_from_auto_qwen(llm_settings=None):
+    api_key = _llm_setting(llm_settings, "qwen_api_key", ["DASHSCOPE_API_KEY"])
+    if api_key and ChatTongyi is not None:
+        return {
+            "provider": "qwen",
+            "api_key": api_key,
+            "model": _llm_setting(llm_settings, "qwen_model", ["DASHSCOPE_MODEL"], "qwen-turbo") or "qwen-turbo",
+        }
+    return None
+
+
+def _resolve_llm_provider_from_auto_openai(llm_settings=None):
+    api_key = _get_openai_compatible_api_key(llm_settings)
+    base_url = _get_openai_compatible_base_url(llm_settings)
+    if api_key and base_url:
+        return {
+            "provider": "openai_compatible",
+            "api_key": api_key,
+            "base_url": _normalize_openai_compatible_url(base_url),
+            "model": _get_openai_compatible_model(llm_settings),
+        }
+    return None
+
+
+def _get_openai_compatible_api_key(llm_settings=None):
+    return (
+        _llm_setting(llm_settings, "openai_api_key", ["OPENAI_COMPATIBLE_API_KEY", "OPENAI_API_KEY"])
+    )
+
+
+def _get_openai_compatible_base_url(llm_settings=None):
+    return (
+        _llm_setting(llm_settings, "openai_base_url", ["OPENAI_COMPATIBLE_BASE_URL", "OPENAI_BASE_URL"])
+    )
+
+
+def _get_openai_compatible_model(llm_settings=None):
+    return (
+        _llm_setting(llm_settings, "openai_model", ["OPENAI_COMPATIBLE_MODEL", "OPENAI_MODEL"])
+        or "gpt-4o-mini"
+    )
+
+
+def _llm_setting(llm_settings, key, env_names, default=""):
+    if llm_settings:
+        value = llm_settings.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    for env_name in env_names:
+        value = os.getenv(env_name, "").strip()
+        if value:
+            return value
+    return default
+
+
+def _normalize_openai_compatible_url(base_url):
+    cleaned = base_url.rstrip("/")
+    if cleaned.endswith("/chat/completions"):
+        return cleaned
+    if cleaned.endswith("/v1"):
+        return f"{cleaned}/chat/completions"
+    return f"{cleaned}/v1/chat/completions"
+
+
+def _invoke_llm_prompt(prompt_text, provider):
     try:
-        response = model.invoke(answer_prompt)
-        return getattr(response, "content", None) or str(response)
+        if provider["provider"] == "qwen":
+            model = ChatTongyi(api_key=provider["api_key"], model=provider["model"])
+            response = model.invoke(prompt_text)
+            return getattr(response, "content", None) or str(response)
+        if provider["provider"] == "openai_compatible":
+            return _invoke_openai_compatible_prompt(prompt_text, provider)
     except Exception:
         return None
+    return None
+
+
+def _invoke_openai_compatible_prompt(prompt_text, provider):
+    request_body = {
+        "model": provider["model"],
+        "messages": [{"role": "user", "content": prompt_text}],
+        "temperature": 0.2,
+    }
+    data = json.dumps(request_body).encode("utf-8")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {provider['api_key']}",
+    }
+    req = urllib.request.Request(provider["base_url"], data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=120) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
+        return None
+
+    choices = payload.get("choices") or []
+    if not choices:
+        return None
+    message = choices[0].get("message") or {}
+    content = message.get("content")
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(str(item.get("text") or ""))
+        return "\n".join(part for part in parts if part).strip() or None
+    return None
 
 
 def _infer_column_kind(series):
@@ -1190,6 +1410,33 @@ def _pick_datetime_column(dataset_info):
 def _pick_numeric_column(dataset_info):
     columns = dataset_info.get("numericColumns") or []
     return columns[0] if columns else None
+
+
+def _pick_target_column(dataset_info):
+    profiles = dataset_info.get("columns") or []
+    preferred = []
+    fallback = []
+    for profile in profiles:
+        if profile.get("kind") != "categorical":
+            continue
+        unique_count = int(profile.get("uniqueCount") or 0)
+        if 2 <= unique_count <= 12:
+            name = profile.get("name")
+            lowered = str(name).lower()
+            if any(token in lowered for token in ["label", "target", "class", "risk", "flag", "type", "status"]):
+                preferred.append(name)
+            else:
+                fallback.append(name)
+    if preferred:
+        return preferred[0]
+    return fallback[0] if fallback else None
+
+
+def _target_class_count(column_profiles, target_column):
+    for profile in column_profiles:
+        if profile.get("name") == target_column:
+            return int(profile.get("uniqueCount") or 0)
+    return 0
 
 
 def _numeric_frame(dataframe):

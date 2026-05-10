@@ -3,29 +3,64 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 
 function detectInitialLocale() {
   if (typeof window === 'undefined') return 'en'
-  const stored = window.localStorage.getItem('aiops-delight-locale')
+  const stored = window.localStorage.getItem('datapilot-locale')
   if (stored === 'zh' || stored === 'en') return stored
   return window.navigator.language?.toLowerCase().startsWith('zh') ? 'zh' : 'en'
 }
 
 const COPY = {
   en: {
-    welcome: 'Upload a CSV or Excel file, or choose a built-in example dataset, then ask the agent to analyze it. I will keep the full conversation history here.',
-    defaultPrompt: 'Find the strongest patterns in this dataset, call out anomalies, and recommend what I should investigate next.',
-    appKicker: 'DataPilot',
-    headerTitle: 'Chat with your dataset',
-    headerSubtitle: 'Choose tools, attach a file, and talk to the analysis agent in one running thread.',
+    appName: 'SciPilot',
+    workspace: 'Workspace',
+    admin: 'Admin',
+    login: 'Login',
+    logout: 'Logout',
     languageLabel: 'Language',
     english: 'English',
     chinese: '中文',
+    loadingApp: 'Loading SciPilot...',
+    loginTitle: 'Welcome to SciPilot',
+    loginSubtitle: 'AI-native data and research copilot for students and researchers.',
+    loginHint: 'Built-in admin account: admin / nimda',
+    audienceBadge: 'For Students & Researchers',
+    phaseBadge: 'Phase 1',
+    heroTitle: 'Intelligent data Q&A today. Research exploration next.',
+    heroBody: 'SciPilot is designed for students, labs, and independent researchers who want to talk to datasets in plain language, inspect evidence, and move from questions to findings faster.',
+    featureNowTitle: 'Smart data Q&A',
+    featureNowBody: 'Upload CSV or Excel files, ask questions in natural language, and get answers, charts, and analysis tables in one thread.',
+    featureResearchTitle: 'Research exploration',
+    featureResearchBody: 'Upcoming workflows will help you compare signals, inspect sources, and structure exploratory research more systematically.',
+    featureDeepTitle: 'Deep researcher',
+    featureDeepBody: 'Future releases will expand into deeper multi-step research, synthesis, and evidence-driven investigation.',
+    sponsorTitle: 'LLM Tokens Powered by Fastoken',
+    sponsorBody: 'Our token access is provided by fastoken.ai. If you need stable OpenAI-compatible access for deployment or experimentation, this is our recommended provider.',
+    sponsorCta: 'Visit fastoken.ai',
+    username: 'Username',
+    password: 'Password',
+    signIn: 'Sign in',
+    signingIn: 'Signing in...',
+    loginError: 'Login failed.',
+    currentUser: 'Current user',
+    roleAdmin: 'Admin',
+    roleUser: 'User',
+    changePassword: 'Change password',
+    currentPassword: 'Current password',
+    newPassword: 'New password',
+    savePassword: 'Save password',
+    saving: 'Saving...',
+    passwordSaved: 'Password updated.',
     tools: 'Tools',
+    autoMode: 'Auto',
+    manualMode: 'Manual',
+    autoModeHint: 'Let the agent choose the right tools from the data and your question.',
+    autoModeBadge: 'AI auto',
     activeShort: 'active',
     dataset: 'Dataset',
     ready: 'Ready',
     waiting: 'Waiting',
     attachTitle: 'Attach CSV / XLS / XLSX',
     attachInspecting: 'Inspecting file...',
-    attachCaption: 'Your file is profiled first, then the agent can analyze it.',
+    attachCaption: 'The app profiles your file first, then the agent can analyze it.',
     examples: 'Built-in examples',
     chooseExample: 'Choose an example dataset',
     loadExample: 'Load example',
@@ -50,6 +85,8 @@ const COPY = {
     promptPlaceholder: 'Ask the agent to analyze the dataset, compare segments, forecast a metric, or explain anomalies.',
     analyzing: 'Analyzing...',
     send: 'Send to agent',
+    exportPdf: 'Export PDF',
+    exportingPdf: 'Exporting PDF...',
     analysisSettings: 'Analysis Settings',
     settingsHint: 'Upload a CSV or Excel file to unlock target, time, value, and text-column settings.',
     targetColumn: 'Target column',
@@ -73,23 +110,95 @@ const COPY = {
     inspectFailed: 'Dataset inspection failed.',
     exampleLoadFailed: 'Example dataset could not be loaded.',
     analysisFailed: 'Analysis failed.',
+    exportFailed: 'PDF export failed.',
     runningTools: 'Running the selected tools and composing the analysis...',
     datasetHeadline: '{file} inspected with {rows} rows and {columns} columns.',
     statusOk: 'ok',
     statusSkipped: 'skipped',
     statusError: 'error',
-    statusLoading: 'loading'
+    statusLoading: 'loading',
+    welcome: 'Upload a CSV or Excel file, or choose a built-in example dataset, then ask the agent to analyze it. I will keep the full conversation history here.',
+    defaultPrompt: 'Find the strongest patterns in this dataset, call out anomalies, and recommend what I should investigate next.',
+    adminTitle: 'Admin Console',
+    adminSubtitle: 'Manage users, local credentials, and LLM provider settings stored in SQLite.',
+    llmConfig: 'LLM Configuration',
+    provider: 'Provider',
+    providerAuto: 'Auto',
+    providerQwen: 'Qwen / DashScope',
+    providerOpenAI: 'OpenAI-compatible',
+    qwenKey: 'Qwen API key',
+    qwenModel: 'Qwen model',
+    openaiKey: 'OpenAI-compatible API key',
+    openaiBaseUrl: 'OpenAI-compatible base URL',
+    openaiModel: 'OpenAI-compatible model',
+    saveConfig: 'Save config',
+    configSaved: 'LLM configuration saved.',
+    userManagement: 'User Management',
+    createUser: 'Create user',
+    createUserHint: 'Admins can add normal users and set their passwords here.',
+    create: 'Create',
+    role: 'Role',
+    userList: 'Users',
+    resetPassword: 'Reset password',
+    reset: 'Reset',
+    createdAt: 'Created',
+    updatedAt: 'Updated',
+    myAccount: 'My Account',
+    adminOnly: 'Admin only',
+    sessionExpired: 'Your session expired. Please sign in again.',
+    unauthorized: 'You do not have access to that action.',
+    apiError: 'Something went wrong.',
+    refreshData: 'Refresh data',
+    selfPasswordHint: 'Change your own password here.',
+    loginToContinue: 'Please sign in to continue.',
+    userCreated: 'User {username} created.',
+    userPasswordUpdated: '{username} password updated.'
   },
   zh: {
-    welcome: '上传 CSV 或 Excel 文件，或者直接选择内置示例数据集，然后用自然语言让智能体分析。我会在这里保留完整对话历史。',
-    defaultPrompt: '请找出这个数据集里最强的模式、异常点，以及接下来最值得我调查的方向。',
-    appKicker: 'DataPilot 数据智能助手',
-    headerTitle: '和你的数据集对话',
-    headerSubtitle: '选择工具，接入数据，然后在一个连续会话里和分析智能体交流。',
+    appName: 'SciPilot',
+    workspace: '工作台',
+    admin: '管理台',
+    login: '登录',
+    logout: '退出',
     languageLabel: '语言',
     english: 'English',
     chinese: '中文',
+    loadingApp: '正在加载 SciPilot...',
+    loginTitle: '欢迎来到 SciPilot',
+    loginSubtitle: '面向学生与科研人员的 AI 数据与研究助手。',
+    loginHint: '内置管理员账号：admin / nimda',
+    audienceBadge: '学生与研究者',
+    phaseBadge: '第一期',
+    heroTitle: '先把智能问数做到极致，再走向科研探索。',
+    heroBody: 'SciPilot 面向学生、实验室和科研人员，帮助你直接和数据对话，用自然语言提问、查看证据、生成图表，并更快从问题走到结论。',
+    featureNowTitle: '智能问数',
+    featureNowBody: '上传 CSV 或 Excel，直接提问，获得文字回答、分析图表和结果表格，形成连续会话。',
+    featureResearchTitle: '科研探索',
+    featureResearchBody: '后续版本会支持更系统的科研探索流程，帮助你比较信号、梳理资料、组织研究思路。',
+    featureDeepTitle: 'Deep Researcher',
+    featureDeepBody: '未来会进一步扩展为更深入的多步研究与证据综合能力，支持更复杂的研究任务。',
+    sponsorTitle: 'Fastoken 提供 LLM Token 支持',
+    sponsorBody: '我们的 token 来源由 fastoken.ai 提供。如果你需要稳定的 OpenAI 兼容访问能力用于部署或实验，这是我们推荐的服务。',
+    sponsorCta: '访问 fastoken.ai',
+    username: '用户名',
+    password: '密码',
+    signIn: '登录',
+    signingIn: '登录中...',
+    loginError: '登录失败。',
+    currentUser: '当前用户',
+    roleAdmin: '管理员',
+    roleUser: '普通用户',
+    changePassword: '修改密码',
+    currentPassword: '当前密码',
+    newPassword: '新密码',
+    savePassword: '保存密码',
+    saving: '保存中...',
+    passwordSaved: '密码已更新。',
     tools: '工具',
+    autoMode: '自动',
+    manualMode: '手动',
+    autoModeHint: '由智能体根据数据结构和你的问题自动选择最合适的工具。',
+    autoModeBadge: '智能自动',
     activeShort: '已启用',
     dataset: '数据集',
     ready: '就绪',
@@ -121,6 +230,8 @@ const COPY = {
     promptPlaceholder: '让智能体分析数据、比较分群、预测指标走势，或者解释异常原因。',
     analyzing: '分析中...',
     send: '发送给智能体',
+    exportPdf: '导出 PDF',
+    exportingPdf: '正在导出 PDF...',
     analysisSettings: '分析设置',
     settingsHint: '上传 CSV 或 Excel 文件后，就可以配置目标列、时间列、数值列和文本列。',
     targetColumn: '目标列',
@@ -144,12 +255,49 @@ const COPY = {
     inspectFailed: '数据集解析失败。',
     exampleLoadFailed: '内置示例加载失败。',
     analysisFailed: '分析失败。',
+    exportFailed: 'PDF 导出失败。',
     runningTools: '正在运行所选工具并整理分析结果...',
     datasetHeadline: '已完成对 {file} 的探查，共有 {rows} 行、{columns} 列。',
     statusOk: '成功',
     statusSkipped: '已跳过',
     statusError: '错误',
-    statusLoading: '处理中'
+    statusLoading: '处理中',
+    welcome: '上传 CSV 或 Excel 文件，或者直接选择内置示例数据集，然后用自然语言让智能体分析。我会在这里保留完整对话历史。',
+    defaultPrompt: '请找出这个数据集里最强的模式、异常点，以及接下来最值得我调查的方向。',
+    adminTitle: '管理后台',
+    adminSubtitle: '在这里管理用户、本地账号密码，以及写入 SQLite 的 LLM 配置。',
+    llmConfig: 'LLM 配置',
+    provider: '提供方',
+    providerAuto: '自动',
+    providerQwen: '千问 / DashScope',
+    providerOpenAI: 'OpenAI 兼容接口',
+    qwenKey: '千问 API Key',
+    qwenModel: '千问模型',
+    openaiKey: 'OpenAI 兼容 API Key',
+    openaiBaseUrl: 'OpenAI 兼容 Base URL',
+    openaiModel: 'OpenAI 兼容模型',
+    saveConfig: '保存配置',
+    configSaved: 'LLM 配置已保存。',
+    userManagement: '用户管理',
+    createUser: '新增用户',
+    createUserHint: '管理员可以在这里新增普通用户并设置密码。',
+    create: '创建',
+    role: '角色',
+    userList: '用户列表',
+    resetPassword: '重置密码',
+    reset: '重置',
+    createdAt: '创建时间',
+    updatedAt: '更新时间',
+    myAccount: '我的账号',
+    adminOnly: '仅管理员可见',
+    sessionExpired: '登录状态已失效，请重新登录。',
+    unauthorized: '你没有权限执行这个操作。',
+    apiError: '发生了一个错误。',
+    refreshData: '刷新数据',
+    selfPasswordHint: '在这里修改你自己的密码。',
+    loginToContinue: '请先登录后继续。',
+    userCreated: '用户 {username} 已创建。',
+    userPasswordUpdated: '用户 {username} 的密码已更新。'
   }
 }
 
@@ -195,15 +343,13 @@ const USEFUL_LINKS = {
     { label: 'Tool Catalog API', href: '/api/tools', caption: 'Inspect the available tool catalog as JSON.' },
     { label: 'Health Check', href: '/api/health', caption: 'Confirm the unified Flask app is healthy.' },
     { label: 'Pandas Docs', href: 'https://pandas.pydata.org/docs/', caption: 'Useful for dataframe-oriented analysis.' },
-    { label: 'Scikit-learn', href: 'https://scikit-learn.org/stable/', caption: 'Reference for clustering, anomaly detection, and classification.' },
-    { label: 'Flask Docs', href: 'https://flask.palletsprojects.com/', caption: 'Backend reference for the unified app runtime.' }
+    { label: 'Scikit-learn', href: 'https://scikit-learn.org/stable/', caption: 'Reference for clustering, anomaly detection, and classification.' }
   ],
   zh: [
     { label: '工具目录 API', href: '/api/tools', caption: '以 JSON 形式查看当前可用分析工具。' },
     { label: '健康检查', href: '/api/health', caption: '确认统一 Flask 应用运行正常。' },
     { label: 'Pandas 文档', href: 'https://pandas.pydata.org/docs/', caption: '适合数据表分析和清洗时参考。' },
-    { label: 'Scikit-learn 文档', href: 'https://scikit-learn.org/stable/', caption: '聚类、异常检测和分类建模的参考资料。' },
-    { label: 'Flask 文档', href: 'https://flask.palletsprojects.com/', caption: '统一后端运行方式的框架文档。' }
+    { label: 'Scikit-learn 文档', href: 'https://scikit-learn.org/stable/', caption: '聚类、异常检测和分类建模的参考资料。' }
   ]
 }
 
@@ -222,9 +368,36 @@ const SUGGESTED_PROMPTS = {
   ]
 }
 
+const LOGIN_FEATURES = {
+  en: [
+    { badge: 'Now', title: 'Smart data Q&A', body: 'Natural-language analysis over uploaded datasets, with charts and tabular evidence.' },
+    { badge: 'Next', title: 'Research exploration', body: 'Structured workflows for comparing ideas, signals, sources, and early findings.' },
+    { badge: 'Future', title: 'Deep researcher', body: 'Longer-horizon synthesis and deeper evidence gathering for complex research tasks.' }
+  ],
+  zh: [
+    { badge: '现在', title: '智能问数', body: '围绕上传数据进行自然语言分析，并联动图表和表格证据。' },
+    { badge: '下一步', title: '科研探索', body: '支持更结构化的问题比较、信号梳理、资料对照和初步研究分析。' },
+    { badge: '未来', title: 'Deep Researcher', body: '面向更复杂研究任务的长链路综合分析与证据收集能力。' }
+  ]
+}
+
+const CHART_FRAME = {
+  width: 520,
+  height: 230,
+  left: 42,
+  right: 18,
+  top: 14,
+  bottom: 30
+}
+
 const locale = ref(detectInitialLocale())
+const sessionReady = ref(false)
+const currentUser = ref(null)
+const appView = ref('workspace')
+
 const tools = ref([])
 const examples = ref([])
+const toolMode = ref('manual')
 const selectedTools = ref(['data_profile', 'correlation_explorer', 'anomaly_detector'])
 const datasetFile = ref(null)
 const datasetMeta = ref(null)
@@ -236,43 +409,53 @@ const valueColumn = ref('')
 const textColumns = ref([])
 const inspectLoading = ref(false)
 const analyzeLoading = ref(false)
+const exportLoading = ref(false)
 const chatViewport = ref(null)
 const nextMessageId = ref(1)
-const messages = ref([
-  {
-    id: 1,
-    role: 'assistant',
-    kind: 'welcome',
-    text: COPY[locale.value].welcome
-  }
-])
+const messages = ref([])
+
+const loginUsername = ref('')
+const loginPassword = ref('')
+const authLoading = ref(false)
+const authError = ref('')
+
+const accountCurrentPassword = ref('')
+const accountNewPassword = ref('')
+const accountLoading = ref(false)
+const accountNotice = ref('')
+const accountError = ref('')
+
+const adminUsers = ref([])
+const adminLoading = ref(false)
+const adminNotice = ref('')
+const adminError = ref('')
+const newUserUsername = ref('')
+const newUserPassword = ref('')
+const passwordDrafts = ref({})
+const llmForm = ref({
+  provider: 'auto',
+  qwenApiKey: '',
+  qwenModel: 'qwen-turbo',
+  openaiApiKey: '',
+  openaiBaseUrl: 'https://api.openai.com/v1',
+  openaiModel: 'gpt-4o-mini'
+})
 
 const copy = computed(() => COPY[locale.value])
+const loginFeatures = computed(() => LOGIN_FEATURES[locale.value])
 const usefulLinks = computed(() => USEFUL_LINKS[locale.value])
 const suggestedPrompts = computed(() => SUGGESTED_PROMPTS[locale.value])
-const selectedToolDetails = computed(() =>
-  tools.value.filter((tool) => selectedTools.value.includes(tool.id))
-)
-const selectedToolNames = computed(() => selectedToolDetails.value.map((tool) => localizedToolName(tool)))
+const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const selectedToolDetails = computed(() => tools.value.filter((tool) => selectedTools.value.includes(tool.id)))
+const selectedToolNames = computed(() => (toolMode.value === 'auto' ? [t('autoModeBadge')] : selectedToolDetails.value.map((tool) => localizedToolName(tool))))
 const datasetColumns = computed(() => datasetMeta.value?.columns || [])
-const selectedExample = computed(() =>
-  examples.value.find((example) => example.id === selectedExampleId.value) || null
-)
+const selectedExample = computed(() => examples.value.find((example) => example.id === selectedExampleId.value) || null)
 const canAnalyze = computed(() =>
   Boolean(datasetMeta.value?.datasetId) &&
-  selectedTools.value.length > 0 &&
+  (toolMode.value === 'auto' || selectedTools.value.length > 0) &&
   prompt.value.trim() &&
   !analyzeLoading.value
 )
-
-const CHART_FRAME = {
-  width: 520,
-  height: 230,
-  left: 42,
-  right: 18,
-  top: 14,
-  bottom: 30
-}
 
 function t(key, values = {}) {
   let template = copy.value[key] ?? key
@@ -280,6 +463,32 @@ function t(key, values = {}) {
     template = template.replace(`{${name}}`, value)
   })
   return template
+}
+
+function resetMessages() {
+  nextMessageId.value = 1
+  messages.value = [
+    {
+      id: 1,
+      role: 'assistant',
+      kind: 'welcome',
+      text: t('welcome')
+    }
+  ]
+}
+
+function resetWorkspaceState() {
+  datasetFile.value = null
+  datasetMeta.value = null
+  selectedExampleId.value = ''
+  targetColumn.value = ''
+  timeColumn.value = ''
+  valueColumn.value = ''
+  textColumns.value = []
+  toolMode.value = 'manual'
+  selectedTools.value = ['data_profile', 'correlation_explorer', 'anomaly_detector']
+  prompt.value = t('defaultPrompt')
+  resetMessages()
 }
 
 function localizedToolMeta(toolOrId) {
@@ -308,14 +517,14 @@ function localizedExampleDescription(example) {
   return localizedExampleMeta(example)?.description || example.description
 }
 
+function setToolMode(mode) {
+  if (mode !== 'auto' && mode !== 'manual') return
+  toolMode.value = mode
+}
+
 function createMessage(role, kind, payload = {}) {
   nextMessageId.value += 1
-  return {
-    id: nextMessageId.value,
-    role,
-    kind,
-    ...payload
-  }
+  return { id: nextMessageId.value, role, kind, ...payload }
 }
 
 async function scrollToBottom() {
@@ -335,10 +544,7 @@ function pushMessage(role, kind, payload = {}) {
 function replaceMessage(messageId, patch) {
   const index = messages.value.findIndex((message) => message.id === messageId)
   if (index >= 0) {
-    messages.value[index] = {
-      ...messages.value[index],
-      ...patch
-    }
+    messages.value[index] = { ...messages.value[index], ...patch }
   }
   scrollToBottom()
 }
@@ -348,13 +554,11 @@ function changeLanguage(nextLocale) {
   const previousLocale = locale.value
   locale.value = nextLocale
   if (typeof window !== 'undefined') {
-    window.localStorage.setItem('aiops-delight-locale', nextLocale)
+    window.localStorage.setItem('datapilot-locale', nextLocale)
   }
-
   if (!prompt.value || prompt.value === COPY[previousLocale].defaultPrompt) {
     prompt.value = COPY[nextLocale].defaultPrompt
   }
-
   const welcomeMessage = messages.value.find((message) => message.kind === 'welcome')
   if (welcomeMessage) {
     welcomeMessage.text = COPY[nextLocale].welcome
@@ -384,12 +588,479 @@ function roleLabel(role) {
   return t('system')
 }
 
+function roleChip(role) {
+  return role === 'admin' ? t('roleAdmin') : t('roleUser')
+}
+
 function datasetHeadline(dataset) {
   return t('datasetHeadline', {
     file: dataset.fileName,
     rows: String(dataset.rowCount),
     columns: String(dataset.columnCount)
   })
+}
+
+function choosePrompt(text) {
+  prompt.value = text
+}
+
+function toggleTool(toolId) {
+  if (toolMode.value === 'auto') return
+  if (selectedTools.value.includes(toolId)) {
+    selectedTools.value = selectedTools.value.filter((id) => id !== toolId)
+  } else {
+    selectedTools.value = [...selectedTools.value, toolId]
+  }
+}
+
+async function apiFetch(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: 'same-origin',
+    ...options
+  })
+
+  let data = {}
+  const contentType = response.headers.get('content-type') || ''
+  if (contentType.includes('application/json')) {
+    data = await response.json()
+  } else {
+    const text = await response.text()
+    data = text ? { text } : {}
+  }
+
+  if (response.status === 401 && url !== '/api/auth/login' && url !== '/api/auth/me') {
+    currentUser.value = null
+    sessionReady.value = true
+    authError.value = t('sessionExpired')
+    resetWorkspaceState()
+  }
+
+  if (response.status === 403) {
+    adminError.value = t('unauthorized')
+  }
+
+  return { response, data }
+}
+
+async function fetchSession() {
+  const { response, data } = await apiFetch('/api/auth/me')
+  if (!response.ok) return
+  currentUser.value = data.user || null
+  if (currentUser.value) {
+    await hydrateAfterLogin()
+  } else {
+    resetWorkspaceState()
+  }
+}
+
+async function hydrateAfterLogin() {
+  await Promise.all([fetchTools(), fetchExamples()])
+  if (isAdmin.value && appView.value === 'admin') {
+    await loadAdminData()
+  }
+}
+
+async function login() {
+  authLoading.value = true
+  authError.value = ''
+  try {
+    const { response, data } = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loginUsername.value,
+        password: loginPassword.value
+      })
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('loginError'))
+    }
+    currentUser.value = data.user
+    loginPassword.value = ''
+    authError.value = ''
+    resetWorkspaceState()
+    await hydrateAfterLogin()
+  } catch (error) {
+    authError.value = error.message
+  } finally {
+    authLoading.value = false
+  }
+}
+
+async function logout() {
+  await apiFetch('/api/auth/logout', { method: 'POST' })
+  currentUser.value = null
+  appView.value = 'workspace'
+  authError.value = ''
+  accountNotice.value = ''
+  adminNotice.value = ''
+  resetWorkspaceState()
+}
+
+async function fetchTools() {
+  const { response, data } = await apiFetch('/api/tools')
+  if (response.ok) {
+    tools.value = data.tools || []
+  }
+}
+
+async function fetchExamples() {
+  const { response, data } = await apiFetch('/api/examples')
+  if (response.ok) {
+    examples.value = data.examples || []
+  }
+}
+
+function applyDatasetMeta(data) {
+  datasetMeta.value = data
+  targetColumn.value = data.categoricalColumns?.[0] || ''
+  timeColumn.value = data.datetimeColumns?.[0] || ''
+  valueColumn.value = data.numericColumns?.[0] || ''
+  textColumns.value = data.textColumns ? data.textColumns.slice(0, 1) : []
+}
+
+async function handleFileChange(event) {
+  const file = event.target.files?.[0]
+  datasetFile.value = file || null
+  selectedExampleId.value = ''
+  if (file) {
+    pushMessage('user', 'upload', {
+      text: t('attachedDataset', { file: file.name })
+    })
+    await inspectDataset()
+  }
+}
+
+async function inspectDataset() {
+  if (!datasetFile.value) return
+  inspectLoading.value = true
+  const loadingId = pushMessage('assistant', 'loading', {
+    text: t('inspectMessage', { file: datasetFile.value.name })
+  })
+
+  try {
+    const formData = new FormData()
+    formData.append('file', datasetFile.value)
+    const { response, data } = await apiFetch('/api/datasets/inspect', {
+      method: 'POST',
+      body: formData
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('inspectFailed'))
+    }
+    applyDatasetMeta(data)
+    replaceMessage(loadingId, {
+      role: 'assistant',
+      kind: 'dataset',
+      text: datasetHeadline(data),
+      dataset: data
+    })
+  } catch (error) {
+    replaceMessage(loadingId, {
+      role: 'assistant',
+      kind: 'error',
+      text: error.message
+    })
+  } finally {
+    inspectLoading.value = false
+  }
+}
+
+async function loadExampleDataset() {
+  if (!selectedExampleId.value) return
+  datasetFile.value = null
+  inspectLoading.value = true
+  const example = selectedExample.value
+  const loadingId = pushMessage('assistant', 'loading', {
+    text: t('loadExampleMessage', { file: example?.fileName || selectedExampleId.value })
+  })
+
+  try {
+    const { response, data } = await apiFetch('/api/examples/load', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ exampleId: selectedExampleId.value })
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('exampleLoadFailed'))
+    }
+    pushMessage('user', 'upload', {
+      text: t('selectedExample', { file: data.fileName })
+    })
+    applyDatasetMeta(data)
+    replaceMessage(loadingId, {
+      role: 'assistant',
+      kind: 'dataset',
+      text: datasetHeadline(data),
+      dataset: data
+    })
+  } catch (error) {
+    replaceMessage(loadingId, {
+      role: 'assistant',
+      kind: 'error',
+      text: error.message
+    })
+  } finally {
+    inspectLoading.value = false
+  }
+}
+
+async function analyzeDataset() {
+  if (!datasetMeta.value?.datasetId) {
+    pushMessage('assistant', 'error', { text: t('uploadFirstError') })
+    return
+  }
+
+  const userPrompt = prompt.value.trim()
+  if (!userPrompt) return
+
+  analyzeLoading.value = true
+  pushMessage('user', 'prompt', {
+    text: userPrompt,
+    toolNames: selectedToolNames.value,
+    fileName: datasetMeta.value.fileName
+  })
+  const loadingId = pushMessage('assistant', 'loading', { text: t('runningTools') })
+
+  try {
+    const { response, data } = await apiFetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        datasetId: datasetMeta.value.datasetId,
+        selectedTools: selectedTools.value,
+        toolMode: toolMode.value,
+        prompt: userPrompt,
+        targetColumn: targetColumn.value || null,
+        timeColumn: timeColumn.value || null,
+        valueColumn: valueColumn.value || null,
+        textColumns: textColumns.value,
+        language: locale.value
+      })
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('analysisFailed'))
+    }
+
+    replaceMessage(loadingId, {
+      role: 'assistant',
+      kind: 'analysis',
+      text: data.answer || data.summary,
+      answer: data.answer || data.summary,
+      summary: data.summary,
+      analysis: data
+    })
+
+    if (data.toolMode === 'auto' && data.resolvedContext) {
+      targetColumn.value = data.resolvedContext.targetColumn || targetColumn.value
+      timeColumn.value = data.resolvedContext.timeColumn || timeColumn.value
+      valueColumn.value = data.resolvedContext.valueColumn || valueColumn.value
+      textColumns.value = data.resolvedContext.textColumns?.length ? data.resolvedContext.textColumns : textColumns.value
+    }
+    prompt.value = ''
+  } catch (error) {
+    replaceMessage(loadingId, {
+      role: 'assistant',
+      kind: 'error',
+      text: error.message
+    })
+  } finally {
+    analyzeLoading.value = false
+  }
+}
+
+function exportableMessages() {
+  return messages.value.map((message) => ({
+    role: message.role,
+    kind: message.kind,
+    text: message.text || '',
+    answer: message.answer || '',
+    summary: message.summary || '',
+    dataset: message.dataset || null,
+    analysis: message.analysis || null
+  }))
+}
+
+async function exportChatPdf() {
+  exportLoading.value = true
+  try {
+    const fileStem = datasetMeta.value?.fileName
+      ? datasetMeta.value.fileName.replace(/\.[^.]+$/, '')
+      : 'chat'
+    const title = locale.value === 'zh' ? 'SciPilot 对话导出' : 'SciPilot Chat Export'
+    const response = await fetch('/api/export-chat-pdf', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        language: locale.value,
+        datasetName: datasetMeta.value?.fileName || '',
+        fileName: `${fileStem}-chat-export.pdf`,
+        messages: exportableMessages()
+      })
+    })
+    if (response.status === 401) {
+      currentUser.value = null
+      authError.value = t('sessionExpired')
+      resetWorkspaceState()
+      throw new Error(t('sessionExpired'))
+    }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}))
+      throw new Error(payload.error || t('exportFailed'))
+    }
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${fileStem}-chat-export.pdf`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    pushMessage('assistant', 'error', {
+      text: error.message || t('exportFailed')
+    })
+  } finally {
+    exportLoading.value = false
+  }
+}
+
+async function changeOwnPassword() {
+  accountLoading.value = true
+  accountNotice.value = ''
+  accountError.value = ''
+  try {
+    const { response, data } = await apiFetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPassword: accountCurrentPassword.value,
+        newPassword: accountNewPassword.value
+      })
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('apiError'))
+    }
+    accountCurrentPassword.value = ''
+    accountNewPassword.value = ''
+    accountNotice.value = t('passwordSaved')
+  } catch (error) {
+    accountError.value = error.message
+  } finally {
+    accountLoading.value = false
+  }
+}
+
+function setAppView(view) {
+  if (view === 'admin' && !isAdmin.value) return
+  appView.value = view
+  if (view === 'admin' && isAdmin.value) {
+    loadAdminData()
+  }
+}
+
+async function loadAdminData() {
+  if (!isAdmin.value) return
+  adminLoading.value = true
+  adminError.value = ''
+  try {
+    const [userResult, configResult] = await Promise.all([
+      apiFetch('/api/admin/users'),
+      apiFetch('/api/admin/llm-config')
+    ])
+    if (!userResult.response.ok) throw new Error(userResult.data.error || t('apiError'))
+    if (!configResult.response.ok) throw new Error(configResult.data.error || t('apiError'))
+
+    adminUsers.value = userResult.data.users || []
+    passwordDrafts.value = Object.fromEntries(adminUsers.value.map((user) => [user.id, '']))
+    llmForm.value = {
+      provider: configResult.data.config?.provider || 'auto',
+      qwenApiKey: configResult.data.config?.qwen_api_key || '',
+      qwenModel: configResult.data.config?.qwen_model || 'qwen-turbo',
+      openaiApiKey: configResult.data.config?.openai_api_key || '',
+      openaiBaseUrl: configResult.data.config?.openai_base_url || 'https://api.openai.com/v1',
+      openaiModel: configResult.data.config?.openai_model || 'gpt-4o-mini'
+    }
+  } catch (error) {
+    adminError.value = error.message
+  } finally {
+    adminLoading.value = false
+  }
+}
+
+async function createManagedUser() {
+  adminNotice.value = ''
+  adminError.value = ''
+  try {
+    const { response, data } = await apiFetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: newUserUsername.value,
+        password: newUserPassword.value
+      })
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('apiError'))
+    }
+    newUserUsername.value = ''
+    newUserPassword.value = ''
+    adminNotice.value = t('userCreated', { username: data.user.username })
+    await loadAdminData()
+  } catch (error) {
+    adminError.value = error.message
+  }
+}
+
+async function resetManagedUserPassword(userId) {
+  adminNotice.value = ''
+  adminError.value = ''
+  try {
+    const { response, data } = await apiFetch(`/api/admin/users/${userId}/password`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password: passwordDrafts.value[userId]
+      })
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('apiError'))
+    }
+    passwordDrafts.value[userId] = ''
+    adminNotice.value = t('userPasswordUpdated', { username: data.user.username })
+    await loadAdminData()
+  } catch (error) {
+    adminError.value = error.message
+  }
+}
+
+async function saveLlmConfig() {
+  adminNotice.value = ''
+  adminError.value = ''
+  try {
+    const { response, data } = await apiFetch('/api/admin/llm-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(llmForm.value)
+    })
+    if (!response.ok) {
+      throw new Error(data.error || t('apiError'))
+    }
+    llmForm.value = {
+      provider: data.config?.provider || 'auto',
+      qwenApiKey: data.config?.qwen_api_key || '',
+      qwenModel: data.config?.qwen_model || 'qwen-turbo',
+      openaiApiKey: data.config?.openai_api_key || '',
+      openaiBaseUrl: data.config?.openai_base_url || 'https://api.openai.com/v1',
+      openaiModel: data.config?.openai_model || 'gpt-4o-mini'
+    }
+    adminNotice.value = t('configSaved')
+  } catch (error) {
+    adminError.value = error.message
+  }
 }
 
 function formatChartValue(value) {
@@ -419,9 +1090,7 @@ function lineLabels(chart) {
   const labels = []
   ;(chart?.series || []).forEach((series) => {
     ;(series.data || []).forEach((point) => {
-      if (!labels.includes(point.label)) {
-        labels.push(point.label)
-      }
+      if (!labels.includes(point.label)) labels.push(point.label)
     })
   })
   return labels
@@ -432,7 +1101,6 @@ function lineDomain(chart) {
     .flatMap((series) => series.data || [])
     .map((point) => Number(point.value))
     .filter((value) => Number.isFinite(value))
-
   if (!values.length) return { min: 0, max: 1 }
   let min = Math.min(...values)
   let max = Math.max(...values)
@@ -466,24 +1134,14 @@ function linePointY(chart, value) {
 function linePath(chart, series) {
   const points = (series?.data || []).filter((point) => Number.isFinite(Number(point.value)))
   if (!points.length) return ''
-  return points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${linePointX(chart, point.label)} ${linePointY(chart, point.value)}`)
-    .join(' ')
+  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${linePointX(chart, point.label)} ${linePointY(chart, point.value)}`).join(' ')
 }
 
 function lineBandPath(chart, band) {
-  const points = (band?.data || []).filter(
-    (point) => Number.isFinite(Number(point.low)) && Number.isFinite(Number(point.high))
-  )
+  const points = (band?.data || []).filter((point) => Number.isFinite(Number(point.low)) && Number.isFinite(Number(point.high)))
   if (!points.length) return ''
-  const upperPath = points
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${linePointX(chart, point.label)} ${linePointY(chart, point.high)}`)
-    .join(' ')
-  const lowerPath = points
-    .slice()
-    .reverse()
-    .map((point) => `L ${linePointX(chart, point.label)} ${linePointY(chart, point.low)}`)
-    .join(' ')
+  const upperPath = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${linePointX(chart, point.label)} ${linePointY(chart, point.high)}`).join(' ')
+  const lowerPath = points.slice().reverse().map((point) => `L ${linePointX(chart, point.label)} ${linePointY(chart, point.low)}`).join(' ')
   return `${upperPath} ${lowerPath} Z`
 }
 
@@ -492,9 +1150,7 @@ function scatterPoints(chart) {
 }
 
 function scatterDomain(chart, key) {
-  const values = scatterPoints(chart)
-    .map((point) => Number(point[key]))
-    .filter((value) => Number.isFinite(value))
+  const values = scatterPoints(chart).map((point) => Number(point[key])).filter((value) => Number.isFinite(value))
   if (!values.length) return { min: 0, max: 1 }
   let min = Math.min(...values)
   let max = Math.max(...values)
@@ -518,15 +1174,11 @@ function scatterPointY(chart, value) {
 }
 
 function scatterSizeDomain(chart) {
-  const values = scatterPoints(chart)
-    .map((point) => Number(point.size))
-    .filter((value) => Number.isFinite(value))
+  const values = scatterPoints(chart).map((point) => Number(point.size)).filter((value) => Number.isFinite(value))
   if (!values.length) return { min: 0, max: 1 }
   let min = Math.min(...values)
   let max = Math.max(...values)
-  if (min === max) {
-    min = 0
-  }
+  if (min === max) min = 0
   return { min, max }
 }
 
@@ -552,11 +1204,7 @@ function colorToRgb(color) {
   const hex = String(color || '#2c8f6b').replace('#', '')
   const full = hex.length === 3 ? hex.split('').map((item) => item + item).join('') : hex
   const int = Number.parseInt(full, 16)
-  return {
-    r: (int >> 16) & 255,
-    g: (int >> 8) & 255,
-    b: int & 255
-  }
+  return { r: (int >> 16) & 255, g: (int >> 8) & 255, b: int & 255 }
 }
 
 function colorWithAlpha(color, alpha) {
@@ -570,240 +1218,137 @@ function lightenColor(color, factor = 0.35) {
   return `rgb(${mix(r)}, ${mix(g)}, ${mix(b)})`
 }
 
-function choosePrompt(text) {
-  prompt.value = text
-}
-
-async function fetchTools() {
-  const response = await fetch('/api/tools')
-  const data = await response.json()
-  tools.value = data.tools || []
-}
-
-async function fetchExamples() {
-  const response = await fetch('/api/examples')
-  const data = await response.json()
-  examples.value = data.examples || []
-}
-
-function toggleTool(toolId) {
-  if (selectedTools.value.includes(toolId)) {
-    selectedTools.value = selectedTools.value.filter((id) => id !== toolId)
-    return
-  }
-  selectedTools.value = [...selectedTools.value, toolId]
-}
-
-async function handleFileChange(event) {
-  const file = event.target.files?.[0]
-  datasetFile.value = file || null
-  selectedExampleId.value = ''
-  if (file) {
-    pushMessage('user', 'upload', {
-      text: t('attachedDataset', { file: file.name })
-    })
-    await inspectDataset()
-  }
-}
-
-function applyDatasetMeta(data) {
-  datasetMeta.value = data
-  targetColumn.value = data.categoricalColumns?.[0] || ''
-  timeColumn.value = data.datetimeColumns?.[0] || ''
-  valueColumn.value = data.numericColumns?.[0] || ''
-  textColumns.value = data.textColumns ? data.textColumns.slice(0, 1) : []
-}
-
-async function inspectDataset() {
-  if (!datasetFile.value) return
-
-  inspectLoading.value = true
-  const loadingId = pushMessage('assistant', 'loading', {
-    text: t('inspectMessage', { file: datasetFile.value.name })
-  })
-
+onMounted(async () => {
+  resetMessages()
   try {
-    const formData = new FormData()
-    formData.append('file', datasetFile.value)
-
-    const response = await fetch('/api/datasets/inspect', {
-      method: 'POST',
-      body: formData
-    })
-    const data = await response.json()
-    if (!response.ok) {
-      throw new Error(data.error || t('inspectFailed'))
-    }
-
-    applyDatasetMeta(data)
-
-    replaceMessage(loadingId, {
-      role: 'assistant',
-      kind: 'dataset',
-      text: datasetHeadline(data),
-      dataset: data
-    })
-  } catch (error) {
-    replaceMessage(loadingId, {
-      role: 'assistant',
-      kind: 'error',
-      text: error.message
-    })
+    await fetchSession()
   } finally {
-    inspectLoading.value = false
+    sessionReady.value = true
+    scrollToBottom()
   }
-}
-
-async function loadExampleDataset() {
-  if (!selectedExampleId.value) return
-
-  datasetFile.value = null
-  inspectLoading.value = true
-  const example = selectedExample.value
-  const loadingId = pushMessage('assistant', 'loading', {
-    text: t('loadExampleMessage', { file: example?.fileName || selectedExampleId.value })
-  })
-
-  try {
-    const response = await fetch('/api/examples/load', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        exampleId: selectedExampleId.value
-      })
-    })
-    const data = await response.json()
-    if (!response.ok) {
-      throw new Error(data.error || t('exampleLoadFailed'))
-    }
-
-    pushMessage('user', 'upload', {
-      text: t('selectedExample', { file: data.fileName })
-    })
-
-    applyDatasetMeta(data)
-    replaceMessage(loadingId, {
-      role: 'assistant',
-      kind: 'dataset',
-      text: datasetHeadline(data),
-      dataset: data
-    })
-  } catch (error) {
-    replaceMessage(loadingId, {
-      role: 'assistant',
-      kind: 'error',
-      text: error.message
-    })
-  } finally {
-    inspectLoading.value = false
-  }
-}
-
-async function analyzeDataset() {
-  if (!datasetMeta.value?.datasetId) {
-    pushMessage('assistant', 'error', {
-      text: t('uploadFirstError')
-    })
-    return
-  }
-
-  const userPrompt = prompt.value.trim()
-  if (!userPrompt) return
-
-  analyzeLoading.value = true
-  pushMessage('user', 'prompt', {
-    text: userPrompt,
-    toolNames: selectedToolNames.value,
-    fileName: datasetMeta.value.fileName
-  })
-  const loadingId = pushMessage('assistant', 'loading', {
-    text: t('runningTools')
-  })
-
-  try {
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        datasetId: datasetMeta.value.datasetId,
-        selectedTools: selectedTools.value,
-        prompt: userPrompt,
-        targetColumn: targetColumn.value || null,
-        timeColumn: timeColumn.value || null,
-        valueColumn: valueColumn.value || null,
-        textColumns: textColumns.value,
-        language: locale.value
-      })
-    })
-    const data = await response.json()
-    if (!response.ok) {
-      throw new Error(data.error || t('analysisFailed'))
-    }
-
-    replaceMessage(loadingId, {
-      role: 'assistant',
-      kind: 'analysis',
-      text: data.answer || data.summary,
-      answer: data.answer || data.summary,
-      summary: data.summary,
-      analysis: data
-    })
-    prompt.value = ''
-  } catch (error) {
-    replaceMessage(loadingId, {
-      role: 'assistant',
-      kind: 'error',
-      text: error.message
-    })
-  } finally {
-    analyzeLoading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchTools()
-  fetchExamples()
-  scrollToBottom()
 })
 </script>
 
 <template>
-  <div class="copilot-shell">
-    <header class="tool-banner">
-      <div class="banner-copy">
-        <p class="banner-kicker">{{ t('appKicker') }}</p>
-        <h1>{{ t('headerTitle') }}</h1>
-        <p>{{ t('headerSubtitle') }}</p>
+  <div v-if="!sessionReady" class="boot-shell">
+    <div class="boot-card">{{ t('loadingApp') }}</div>
+  </div>
+
+  <div v-else-if="!currentUser" class="auth-shell">
+    <section class="auth-card">
+      <div class="auth-showcase">
+        <div class="auth-brand">
+          <div class="auth-pills">
+            <span class="hero-pill">{{ t('audienceBadge') }}</span>
+            <span class="hero-pill hero-pill-warm">{{ t('phaseBadge') }}</span>
+          </div>
+          <p class="brand-kicker">{{ t('appName') }}</p>
+          <h1>{{ t('heroTitle') }}</h1>
+          <p>{{ t('heroBody') }}</p>
+        </div>
+
+        <div class="feature-grid">
+          <article v-for="feature in loginFeatures" :key="feature.title" class="feature-card">
+            <span class="feature-badge">{{ feature.badge }}</span>
+            <h3>{{ feature.title }}</h3>
+            <p>{{ feature.body }}</p>
+          </article>
+        </div>
+
+        <a class="sponsor-card" href="https://fastoken.ai/" target="_blank" rel="noreferrer">
+          <div>
+            <p class="sponsor-kicker">fastoken.ai</p>
+            <h3>{{ t('sponsorTitle') }}</h3>
+            <p>{{ t('sponsorBody') }}</p>
+          </div>
+          <span class="sponsor-link">{{ t('sponsorCta') }}</span>
+        </a>
       </div>
-      <div class="language-toggle" role="group" :aria-label="t('languageLabel')">
-        <span class="language-label">{{ t('languageLabel') }}</span>
-        <button type="button" class="language-chip" :class="{ active: locale === 'en' }" @click="changeLanguage('en')">
-          {{ t('english') }}
-        </button>
-        <button type="button" class="language-chip" :class="{ active: locale === 'zh' }" @click="changeLanguage('zh')">
-          {{ t('chinese') }}
-        </button>
+
+      <div class="auth-pane">
+        <div class="language-toggle" role="group" :aria-label="t('languageLabel')">
+          <span class="language-label">{{ t('languageLabel') }}</span>
+          <button type="button" class="language-chip" :class="{ active: locale === 'en' }" @click="changeLanguage('en')">{{ t('english') }}</button>
+          <button type="button" class="language-chip" :class="{ active: locale === 'zh' }" @click="changeLanguage('zh')">{{ t('chinese') }}</button>
+        </div>
+
+        <div class="auth-login-copy">
+          <p class="brand-kicker">{{ t('appName') }}</p>
+          <h2>{{ t('loginTitle') }}</h2>
+          <p>{{ t('loginSubtitle') }}</p>
+        </div>
+
+        <form class="auth-form" @submit.prevent="login">
+          <label>
+            <span>{{ t('username') }}</span>
+            <input v-model="loginUsername" autocomplete="username" />
+          </label>
+          <label>
+            <span>{{ t('password') }}</span>
+            <input v-model="loginPassword" type="password" autocomplete="current-password" />
+          </label>
+          <button class="primary-button" :disabled="authLoading">
+            {{ authLoading ? t('signingIn') : t('signIn') }}
+          </button>
+        </form>
+
+        <p class="auth-hint">{{ t('loginHint') }}</p>
+        <p v-if="authError" class="form-error">{{ authError }}</p>
+      </div>
+    </section>
+  </div>
+
+  <div v-else class="app-shell">
+    <header class="app-bar">
+      <div class="app-bar-copy">
+        <p class="brand-kicker">{{ t('appName') }}</p>
+        <div class="nav-strip">
+          <button type="button" class="nav-chip" :class="{ active: appView === 'workspace' }" @click="setAppView('workspace')">
+            {{ t('workspace') }}
+          </button>
+          <button
+            v-if="isAdmin"
+            type="button"
+            class="nav-chip"
+            :class="{ active: appView === 'admin' }"
+            @click="setAppView('admin')"
+          >
+            {{ t('admin') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="app-bar-actions">
+        <div class="language-toggle" role="group" :aria-label="t('languageLabel')">
+          <span class="language-label">{{ t('languageLabel') }}</span>
+          <button type="button" class="language-chip" :class="{ active: locale === 'en' }" @click="changeLanguage('en')">{{ t('english') }}</button>
+          <button type="button" class="language-chip" :class="{ active: locale === 'zh' }" @click="changeLanguage('zh')">{{ t('chinese') }}</button>
+        </div>
+        <span class="user-badge">{{ currentUser.username }} · {{ roleChip(currentUser.role) }}</span>
+        <button type="button" class="ghost-button" @click="logout">{{ t('logout') }}</button>
       </div>
     </header>
 
-    <main class="workspace">
-      <aside class="sidebar sidebar-left">
-        <section class="sidebar-card">
+    <main v-if="appView === 'workspace'" class="workspace-page">
+      <aside class="sidebar">
+        <section class="panel-card">
           <div class="card-heading">
             <h2>{{ t('tools') }}</h2>
-            <span class="card-pill">{{ selectedTools.length }} {{ t('activeShort') }}</span>
+            <span class="card-pill">{{ toolMode === 'auto' ? t('autoModeBadge') : `${selectedTools.length} ${t('activeShort')}` }}</span>
           </div>
+          <div class="tool-mode-switch">
+            <button type="button" class="mode-chip" :class="{ active: toolMode === 'auto' }" @click="setToolMode('auto')">{{ t('autoMode') }}</button>
+            <button type="button" class="mode-chip" :class="{ active: toolMode === 'manual' }" @click="setToolMode('manual')">{{ t('manualMode') }}</button>
+          </div>
+          <p v-if="toolMode === 'auto'" class="hint-text">{{ t('autoModeHint') }}</p>
           <div class="sidebar-tool-list">
             <button
               v-for="tool in tools"
               :key="tool.id"
               type="button"
               class="sidebar-tool"
-              :class="{ active: selectedTools.includes(tool.id) }"
+              :class="{ active: toolMode === 'manual' && selectedTools.includes(tool.id), preview: toolMode === 'auto' }"
+              :disabled="toolMode === 'auto'"
               @click="toggleTool(tool.id)"
             >
               <span>{{ localizedToolName(tool) }}</span>
@@ -812,19 +1357,15 @@ onMounted(() => {
           </div>
         </section>
 
-        <section class="sidebar-card dataset-card">
+        <section class="panel-card">
           <div class="card-heading">
             <h2>{{ t('dataset') }}</h2>
-            <span class="card-pill" :class="{ muted: !datasetMeta }">
-              {{ datasetMeta ? t('ready') : t('waiting') }}
-            </span>
+            <span class="card-pill" :class="{ muted: !datasetMeta }">{{ datasetMeta ? t('ready') : t('waiting') }}</span>
           </div>
 
           <label class="attach-drop">
             <input type="file" accept=".csv,.xls,.xlsx" @change="handleFileChange" />
-            <span class="attach-title">
-              {{ inspectLoading ? t('attachInspecting') : t('attachTitle') }}
-            </span>
+            <span class="attach-title">{{ inspectLoading ? t('attachInspecting') : t('attachTitle') }}</span>
             <span class="attach-caption">{{ t('attachCaption') }}</span>
           </label>
 
@@ -833,24 +1374,15 @@ onMounted(() => {
               <span class="fact-label">{{ t('examples') }}</span>
               <select v-model="selectedExampleId" :disabled="inspectLoading || !examples.length">
                 <option value="">{{ t('chooseExample') }}</option>
-                <option v-for="example in examples" :key="example.id" :value="example.id">
-                  {{ localizedExampleLabel(example) }}
-                </option>
+                <option v-for="example in examples" :key="example.id" :value="example.id">{{ localizedExampleLabel(example) }}</option>
               </select>
             </label>
-            <button
-              type="button"
-              class="secondary-button"
-              :disabled="inspectLoading || !selectedExampleId"
-              @click="loadExampleDataset"
-            >
+            <button type="button" class="secondary-button" :disabled="inspectLoading || !selectedExampleId" @click="loadExampleDataset">
               {{ inspectLoading ? t('loading') : t('loadExample') }}
             </button>
           </div>
 
-          <p v-if="selectedExample" class="example-caption">
-            {{ localizedExampleDescription(selectedExample) }}
-          </p>
+          <p v-if="selectedExample" class="hint-text">{{ localizedExampleDescription(selectedExample) }}</p>
 
           <div v-if="datasetMeta" class="dataset-facts">
             <div class="dataset-fact dataset-fact-file">
@@ -872,60 +1404,44 @@ onMounted(() => {
           </div>
         </section>
 
-        <section class="sidebar-card">
+        <section class="panel-card">
           <div class="card-heading">
             <h2>{{ t('promptIdeas') }}</h2>
           </div>
           <div class="link-stack">
-            <button
-              v-for="item in suggestedPrompts"
-              :key="item"
-              type="button"
-              class="prompt-link"
-              @click="choosePrompt(item)"
-            >
+            <button v-for="item in suggestedPrompts" :key="item" type="button" class="prompt-link" @click="choosePrompt(item)">
               {{ item }}
             </button>
           </div>
         </section>
-
       </aside>
 
       <section class="chat-panel">
         <div class="chat-frame">
           <div class="chat-header">
             <div>
-              <p class="chat-kicker">{{ t('conversation') }}</p>
+              <p class="brand-kicker">{{ t('conversation') }}</p>
               <h2>{{ t('analysisThread') }}</h2>
             </div>
             <div class="chat-status">
-              <span class="card-pill">{{ selectedTools.length }} {{ t('activeShort') }}</span>
+              <button type="button" class="secondary-button export-button" :disabled="exportLoading || !messages.length" @click="exportChatPdf">
+                {{ exportLoading ? t('exportingPdf') : t('exportPdf') }}
+              </button>
+              <span class="card-pill">{{ toolMode === 'auto' ? t('autoModeBadge') : `${selectedTools.length} ${t('activeShort')}` }}</span>
               <span class="card-pill muted">{{ datasetMeta ? datasetMeta.fileName : t('noDatasetYet') }}</span>
             </div>
           </div>
 
           <div ref="chatViewport" class="chat-history">
-            <article
-              v-for="message in messages"
-              :key="message.id"
-              class="message-row"
-              :class="message.role"
-            >
-              <div class="message-avatar">
-                {{ message.role === 'user' ? 'Y' : message.role === 'assistant' ? 'AI' : 'SYS' }}
-              </div>
-
+            <article v-for="message in messages" :key="message.id" class="message-row" :class="message.role">
+              <div class="message-avatar">{{ message.role === 'user' ? 'Y' : message.role === 'assistant' ? 'AI' : 'SYS' }}</div>
               <div class="message-card" :class="[message.role, message.kind]">
                 <div class="message-meta">
                   <span>{{ roleLabel(message.role) }}</span>
-                  <span v-if="message.toolNames?.length" class="message-tools">
-                    {{ message.toolNames.join(' · ') }}
-                  </span>
+                  <span v-if="message.toolNames?.length" class="message-tools">{{ message.toolNames.join(' · ') }}</span>
                 </div>
 
-                <p v-if="message.kind !== 'analysis' && message.kind !== 'dataset'" class="message-text">
-                  {{ message.text }}
-                </p>
+                <p v-if="message.kind !== 'analysis' && message.kind !== 'dataset'" class="message-text">{{ message.text }}</p>
 
                 <div v-if="message.kind === 'dataset'" class="dataset-message">
                   <p class="message-text">{{ message.text }}</p>
@@ -943,16 +1459,8 @@ onMounted(() => {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr
-                          v-for="(row, rowIndex) in message.dataset.preview.rows"
-                          :key="`preview-row-${rowIndex}`"
-                        >
-                          <td
-                            v-for="column in message.dataset.preview.columns"
-                            :key="`preview-${rowIndex}-${column}`"
-                          >
-                            {{ row[column] }}
-                          </td>
+                        <tr v-for="(row, rowIndex) in message.dataset.preview.rows" :key="`preview-row-${rowIndex}`">
+                          <td v-for="column in message.dataset.preview.columns" :key="`preview-${rowIndex}-${column}`">{{ row[column] }}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -965,30 +1473,17 @@ onMounted(() => {
                     <pre class="summary-block">{{ message.answer || message.text }}</pre>
                   </section>
 
-                  <section
-                    v-if="message.summary && message.summary !== (message.answer || message.text)"
-                    class="summary-panel"
-                  >
+                  <section v-if="message.summary && message.summary !== (message.answer || message.text)" class="summary-panel">
                     <div class="analysis-label">{{ t('analysisSummary') }}</div>
                     <pre class="summary-block secondary">{{ message.summary }}</pre>
                   </section>
 
                   <div class="analysis-tools">
-                    <span
-                      v-for="tool in message.analysis.selectedTools"
-                      :key="`analysis-tool-${tool}`"
-                      class="mini-chip active"
-                    >
-                      {{ localizedToolName(tool) }}
-                    </span>
+                    <span v-for="tool in message.analysis.selectedTools" :key="`analysis-tool-${tool}`" class="mini-chip active">{{ localizedToolName(tool) }}</span>
                   </div>
 
                   <div class="analysis-result-stack">
-                    <section
-                      v-for="result in message.analysis.results"
-                      :key="result.toolId"
-                      class="analysis-result"
-                    >
+                    <section v-for="result in message.analysis.results" :key="result.toolId" class="analysis-result">
                       <div class="analysis-result-head">
                         <h3>{{ localizedToolName(result.toolId) }}</h3>
                         <span class="card-pill" :class="result.status">{{ formatStatusLabel(result.status) }}</span>
@@ -1001,11 +1496,7 @@ onMounted(() => {
 
                       <div v-if="result.charts?.length" class="chart-stack">
                         <div class="analysis-label">{{ t('visuals') }}</div>
-                        <section
-                          v-for="chart in result.charts"
-                          :key="`${result.toolId}-${chart.title}`"
-                          class="chart-card"
-                        >
+                        <section v-for="chart in result.charts" :key="`${result.toolId}-${chart.title}`" class="chart-card">
                           <div class="chart-head">
                             <h4>{{ chart.title }}</h4>
                             <div class="chart-legend" v-if="chart.series?.length">
@@ -1020,10 +1511,7 @@ onMounted(() => {
                             <div v-for="point in barPoints(chart)" :key="`${chart.title}-${point.label}`" class="bar-row">
                               <span class="bar-label">{{ shortenChartLabel(point.label) }}</span>
                               <div class="bar-track">
-                                <span
-                                  class="bar-fill"
-                                  :style="{ width: barWidth(point.value, chart), backgroundColor: chart.series[0].color }"
-                                />
+                                <span class="bar-fill" :style="{ width: barWidth(point.value, chart), backgroundColor: chart.series[0].color }" />
                               </div>
                               <span class="bar-value">{{ formatChartValue(point.value) }}</span>
                             </div>
@@ -1036,64 +1524,18 @@ onMounted(() => {
                                 :key="`${chart.title}-${band.name}-band`"
                                 :d="lineBandPath(chart, band)"
                                 :fill="colorWithAlpha(band.color, 0.18)"
-                                class="chart-band"
                               />
-                              <line
-                                x1="42"
-                                :y1="CHART_FRAME.height - CHART_FRAME.bottom"
-                                :x2="CHART_FRAME.width - CHART_FRAME.right"
-                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
-                                class="chart-axis"
-                              />
-                              <line
-                                :x1="CHART_FRAME.left"
-                                :y1="CHART_FRAME.top"
-                                :x2="CHART_FRAME.left"
-                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
-                                class="chart-axis"
-                              />
+                              <line x1="42" :y1="CHART_FRAME.height - CHART_FRAME.bottom" :x2="CHART_FRAME.width - CHART_FRAME.right" :y2="CHART_FRAME.height - CHART_FRAME.bottom" class="chart-axis" />
+                              <line :x1="CHART_FRAME.left" :y1="CHART_FRAME.top" :x2="CHART_FRAME.left" :y2="CHART_FRAME.height - CHART_FRAME.bottom" class="chart-axis" />
                               <g v-for="tick in lineTicks(chart)" :key="`${chart.title}-${tick}`">
-                                <line
-                                  :x1="CHART_FRAME.left"
-                                  :y1="linePointY(chart, tick)"
-                                  :x2="CHART_FRAME.width - CHART_FRAME.right"
-                                  :y2="linePointY(chart, tick)"
-                                  class="chart-grid-line"
-                                />
-                                <text
-                                  x="6"
-                                  :y="linePointY(chart, tick) + 4"
-                                  class="chart-axis-text"
-                                >
-                                  {{ formatChartValue(tick) }}
-                                </text>
+                                <line :x1="CHART_FRAME.left" :y1="linePointY(chart, tick)" :x2="CHART_FRAME.width - CHART_FRAME.right" :y2="linePointY(chart, tick)" class="chart-grid-line" />
+                                <text x="6" :y="linePointY(chart, tick) + 4" class="chart-axis-text">{{ formatChartValue(tick) }}</text>
                               </g>
-                              <path
-                                v-for="series in chart.series"
-                                :key="`${chart.title}-${series.name}-path`"
-                                :d="linePath(chart, series)"
-                                :stroke="series.color"
-                                class="chart-line"
-                              />
+                              <path v-for="series in chart.series" :key="`${chart.title}-${series.name}-path`" :d="linePath(chart, series)" :stroke="series.color" class="chart-line" />
                               <g v-for="series in chart.series" :key="`${chart.title}-${series.name}-points`">
-                                <circle
-                                  v-for="point in series.data"
-                                  :key="`${chart.title}-${series.name}-${point.label}`"
-                                  :cx="linePointX(chart, point.label)"
-                                  :cy="linePointY(chart, point.value)"
-                                  r="3.5"
-                                  :fill="series.color"
-                                  class="chart-point"
-                                />
+                                <circle v-for="point in series.data" :key="`${chart.title}-${series.name}-${point.label}`" :cx="linePointX(chart, point.label)" :cy="linePointY(chart, point.value)" r="3.5" :fill="series.color" class="chart-point" />
                               </g>
-                              <text
-                                v-for="label in lineLabels(chart)"
-                                :key="`${chart.title}-${label}`"
-                                :x="linePointX(chart, label)"
-                                :y="CHART_FRAME.height - 8"
-                                text-anchor="middle"
-                                class="chart-axis-text"
-                              >
+                              <text v-for="label in lineLabels(chart)" :key="`${chart.title}-${label}`" :x="linePointX(chart, label)" :y="CHART_FRAME.height - 8" text-anchor="middle" class="chart-axis-text">
                                 {{ shortenChartLabel(label) }}
                               </text>
                             </svg>
@@ -1115,20 +1557,8 @@ onMounted(() => {
                                   <stop offset="100%" :stop-color="colorWithAlpha(series.color, 0.92)" />
                                 </radialGradient>
                               </defs>
-                              <line
-                                :x1="CHART_FRAME.left"
-                                :y1="CHART_FRAME.height - CHART_FRAME.bottom"
-                                :x2="CHART_FRAME.width - CHART_FRAME.right"
-                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
-                                class="chart-axis"
-                              />
-                              <line
-                                :x1="CHART_FRAME.left"
-                                :y1="CHART_FRAME.top"
-                                :x2="CHART_FRAME.left"
-                                :y2="CHART_FRAME.height - CHART_FRAME.bottom"
-                                class="chart-axis"
-                              />
+                              <line :x1="CHART_FRAME.left" :y1="CHART_FRAME.height - CHART_FRAME.bottom" :x2="CHART_FRAME.width - CHART_FRAME.right" :y2="CHART_FRAME.height - CHART_FRAME.bottom" class="chart-axis" />
+                              <line :x1="CHART_FRAME.left" :y1="CHART_FRAME.top" :x2="CHART_FRAME.left" :y2="CHART_FRAME.height - CHART_FRAME.bottom" class="chart-axis" />
                               <g v-for="series in chart.series" :key="`${chart.title}-${series.name}-scatter`">
                                 <ellipse
                                   v-if="chart.variant === 'cluster3d'"
@@ -1139,7 +1569,6 @@ onMounted(() => {
                                   :rx="scatterRadius(chart, point) * 0.92"
                                   :ry="scatterRadius(chart, point) * 0.34"
                                   :fill="colorWithAlpha(series.color, 0.18)"
-                                  class="chart-shadow"
                                 />
                                 <circle
                                   v-for="point in series.data"
@@ -1150,7 +1579,6 @@ onMounted(() => {
                                   :fill="chart.variant === 'cluster3d' ? `url(#${chartGradientId(chart, series, chart.series.indexOf(series))})` : series.color"
                                   :fill-opacity="chart.variant === 'cluster3d' ? 1 : 0.82"
                                   class="chart-point"
-                                  :class="{ 'chart-point-3d': chart.variant === 'cluster3d' }"
                                 />
                                 <circle
                                   v-if="chart.variant === 'cluster3d'"
@@ -1160,25 +1588,10 @@ onMounted(() => {
                                   :cy="scatterPointY(chart, point.y) - scatterRadius(chart, point) * 0.28"
                                   :r="scatterRadius(chart, point) * 0.34"
                                   fill="rgba(255,255,255,0.35)"
-                                  class="chart-highlight"
                                 />
                               </g>
-                              <text
-                                :x="CHART_FRAME.width / 2"
-                                :y="CHART_FRAME.height - 6"
-                                text-anchor="middle"
-                                class="chart-axis-text"
-                              >
-                                {{ chart.xLabel }}
-                              </text>
-                              <text
-                                :x="16"
-                                :y="CHART_FRAME.height / 2"
-                                class="chart-axis-text"
-                                transform="rotate(-90 16 115)"
-                              >
-                                {{ chart.yLabel }}
-                              </text>
+                              <text :x="CHART_FRAME.width / 2" :y="CHART_FRAME.height - 6" text-anchor="middle" class="chart-axis-text">{{ chart.xLabel }}</text>
+                              <text :x="16" :y="CHART_FRAME.height / 2" class="chart-axis-text" transform="rotate(-90 16 115)">{{ chart.yLabel }}</text>
                             </svg>
                           </div>
                         </section>
@@ -1188,11 +1601,7 @@ onMounted(() => {
                         <p v-for="warning in result.warnings" :key="warning">{{ warning }}</p>
                       </div>
 
-                      <div
-                        v-for="table in result.tables"
-                        :key="`${result.toolId}-${table.title}`"
-                        class="result-table"
-                      >
+                      <div v-for="table in result.tables" :key="`${result.toolId}-${table.title}`" class="result-table">
                         <h4>{{ table.title }}</h4>
                         <div class="table-shell" v-if="table.columns.length">
                           <table>
@@ -1202,16 +1611,8 @@ onMounted(() => {
                               </tr>
                             </thead>
                             <tbody>
-                              <tr
-                                v-for="(row, rowIndex) in table.rows"
-                                :key="`${table.title}-${rowIndex}`"
-                              >
-                                <td
-                                  v-for="column in table.columns"
-                                  :key="`${table.title}-${rowIndex}-${column}`"
-                                >
-                                  {{ row[column] }}
-                                </td>
+                              <tr v-for="(row, rowIndex) in table.rows" :key="`${table.title}-${rowIndex}`">
+                                <td v-for="column in table.columns" :key="`${table.title}-${rowIndex}-${column}`">{{ row[column] }}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -1230,84 +1631,77 @@ onMounted(() => {
                 <input type="file" accept=".csv,.xls,.xlsx" @change="handleFileChange" />
                 <span>{{ inspectLoading ? t('attachInspecting') : t('attachFile') }}</span>
               </label>
-              <button
-                type="button"
-                class="attach-inline attach-inline-secondary"
-                :disabled="inspectLoading || !selectedExampleId"
-                @click="loadExampleDataset"
-              >
+              <button type="button" class="attach-inline attach-inline-secondary" :disabled="inspectLoading || !selectedExampleId" @click="loadExampleDataset">
                 <span>{{ inspectLoading ? t('loadingExample') : t('useSelectedExample') }}</span>
               </button>
               <span class="composer-file">{{ datasetMeta ? datasetMeta.fileName : t('noDatasetAttached') }}</span>
             </div>
 
-            <textarea
-              v-model="prompt"
-              class="composer-input"
-              rows="3"
-              :placeholder="t('promptPlaceholder')"
-            />
+            <textarea v-model="prompt" class="composer-input" rows="3" :placeholder="t('promptPlaceholder')" />
 
             <div class="composer-footer">
               <div class="selected-tool-strip">
-                <span
-                  v-for="tool in selectedToolDetails"
-                  :key="`selected-${tool.id}`"
-                  class="mini-chip active"
-                >
-                  {{ localizedToolName(tool) }}
-                </span>
+                <span v-if="toolMode === 'auto'" class="mini-chip active">{{ t('autoModeBadge') }}</span>
+                <span v-for="tool in toolMode === 'auto' ? [] : selectedToolDetails" :key="`selected-${tool.id}`" class="mini-chip active">{{ localizedToolName(tool) }}</span>
               </div>
-
-              <button class="send-button" :disabled="!canAnalyze">
-                {{ analyzeLoading ? t('analyzing') : t('send') }}
-              </button>
+              <button class="send-button" :disabled="!canAnalyze">{{ analyzeLoading ? t('analyzing') : t('send') }}</button>
             </div>
           </form>
         </div>
       </section>
 
-      <aside class="sidebar sidebar-right">
-        <section class="sidebar-card">
+      <aside class="sidebar">
+        <section class="panel-card">
+          <div class="card-heading">
+            <h2>{{ t('myAccount') }}</h2>
+            <span class="card-pill">{{ roleChip(currentUser.role) }}</span>
+          </div>
+          <p class="hint-text">{{ currentUser.username }}</p>
+          <p class="hint-text">{{ t('selfPasswordHint') }}</p>
+          <div class="form-grid compact">
+            <label>
+              <span>{{ t('currentPassword') }}</span>
+              <input v-model="accountCurrentPassword" type="password" />
+            </label>
+            <label>
+              <span>{{ t('newPassword') }}</span>
+              <input v-model="accountNewPassword" type="password" />
+            </label>
+          </div>
+          <button type="button" class="primary-button" :disabled="accountLoading" @click="changeOwnPassword">
+            {{ accountLoading ? t('saving') : t('savePassword') }}
+          </button>
+          <p v-if="accountNotice" class="form-success">{{ accountNotice }}</p>
+          <p v-if="accountError" class="form-error">{{ accountError }}</p>
+        </section>
+
+        <section class="panel-card">
           <div class="card-heading">
             <h2>{{ t('analysisSettings') }}</h2>
           </div>
-
-          <p v-if="!datasetMeta" class="settings-empty">
-            {{ t('settingsHint') }}
-          </p>
-
+          <p v-if="!datasetMeta" class="hint-text">{{ t('settingsHint') }}</p>
           <div class="settings-grid" :class="{ disabled: !datasetMeta }">
             <label>
               <span>{{ t('targetColumn') }}</span>
               <select v-model="targetColumn" :disabled="!datasetMeta">
                 <option value="">{{ t('optional') }}</option>
-                <option v-for="column in datasetColumns" :key="`target-${column.name}`" :value="column.name">
-                  {{ column.name }} ({{ formatLabel(column.kind) }})
-                </option>
+                <option v-for="column in datasetColumns" :key="`target-${column.name}`" :value="column.name">{{ column.name }} ({{ formatLabel(column.kind) }})</option>
               </select>
             </label>
-
             <label>
               <span>{{ t('timeColumn') }}</span>
               <select v-model="timeColumn" :disabled="!datasetMeta">
                 <option value="">{{ t('optional') }}</option>
-                <option v-for="column in datasetColumns" :key="`time-${column.name}`" :value="column.name">
-                  {{ column.name }} ({{ formatLabel(column.kind) }})
-                </option>
+                <option v-for="column in datasetColumns" :key="`time-${column.name}`" :value="column.name">{{ column.name }} ({{ formatLabel(column.kind) }})</option>
               </select>
             </label>
-
             <label>
               <span>{{ t('valueColumn') }}</span>
               <select v-model="valueColumn" :disabled="!datasetMeta">
                 <option value="">{{ t('optional') }}</option>
-                <option v-for="column in (datasetMeta ? datasetMeta.numericColumns : [])" :key="`value-${column}`" :value="column">
-                  {{ column }}
-                </option>
+                <option v-for="column in (datasetMeta ? datasetMeta.numericColumns : [])" :key="`value-${column}`" :value="column">{{ column }}</option>
               </select>
             </label>
-
             <div class="text-picker">
               <span>{{ t('textColumns') }}</span>
               <div class="mini-chip-wrap" v-if="datasetMeta && datasetMeta.textColumns.length">
@@ -1322,26 +1716,17 @@ onMounted(() => {
                   {{ column }}
                 </button>
               </div>
-              <p v-else class="settings-empty-inline">
-                {{ datasetMeta ? t('noTextColumns') : t('textColumnsAfterUpload') }}
-              </p>
+              <p v-else class="hint-text">{{ datasetMeta ? t('noTextColumns') : t('textColumnsAfterUpload') }}</p>
             </div>
           </div>
         </section>
 
-        <section class="sidebar-card">
+        <section class="panel-card">
           <div class="card-heading">
             <h2>{{ t('usefulLinks') }}</h2>
           </div>
           <div class="link-stack">
-            <a
-              v-for="link in usefulLinks"
-              :key="link.label"
-              class="useful-link"
-              :href="link.href"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a v-for="link in usefulLinks" :key="link.label" class="useful-link" :href="link.href" target="_blank" rel="noreferrer">
               <strong>{{ link.label }}</strong>
               <span>{{ link.caption }}</span>
             </a>
@@ -1349,250 +1734,633 @@ onMounted(() => {
         </section>
       </aside>
     </main>
+
+    <main v-else class="admin-page">
+      <section class="admin-hero">
+        <div>
+          <p class="brand-kicker">{{ t('adminOnly') }}</p>
+          <h1>{{ t('adminTitle') }}</h1>
+          <p>{{ t('adminSubtitle') }}</p>
+        </div>
+        <button type="button" class="secondary-button" @click="loadAdminData">{{ t('refreshData') }}</button>
+      </section>
+
+      <p v-if="adminNotice" class="form-success">{{ adminNotice }}</p>
+      <p v-if="adminError" class="form-error">{{ adminError }}</p>
+
+      <div class="admin-grid">
+        <section class="panel-card">
+          <div class="card-heading">
+            <h2>{{ t('llmConfig') }}</h2>
+            <span class="card-pill">{{ t('adminOnly') }}</span>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>{{ t('provider') }}</span>
+              <select v-model="llmForm.provider">
+                <option value="auto">{{ t('providerAuto') }}</option>
+                <option value="qwen">{{ t('providerQwen') }}</option>
+                <option value="openai_compatible">{{ t('providerOpenAI') }}</option>
+              </select>
+            </label>
+            <label>
+              <span>{{ t('qwenModel') }}</span>
+              <input v-model="llmForm.qwenModel" />
+            </label>
+            <label class="full-span">
+              <span>{{ t('qwenKey') }}</span>
+              <input v-model="llmForm.qwenApiKey" type="password" />
+            </label>
+            <label class="full-span">
+              <span>{{ t('openaiBaseUrl') }}</span>
+              <input v-model="llmForm.openaiBaseUrl" />
+            </label>
+            <label>
+              <span>{{ t('openaiModel') }}</span>
+              <input v-model="llmForm.openaiModel" />
+            </label>
+            <label class="full-span">
+              <span>{{ t('openaiKey') }}</span>
+              <input v-model="llmForm.openaiApiKey" type="password" />
+            </label>
+          </div>
+          <button type="button" class="primary-button" :disabled="adminLoading" @click="saveLlmConfig">
+            {{ adminLoading ? t('saving') : t('saveConfig') }}
+          </button>
+        </section>
+
+        <section class="panel-card">
+          <div class="card-heading">
+            <h2>{{ t('createUser') }}</h2>
+          </div>
+          <p class="hint-text">{{ t('createUserHint') }}</p>
+          <div class="form-grid">
+            <label>
+              <span>{{ t('username') }}</span>
+              <input v-model="newUserUsername" />
+            </label>
+            <label>
+              <span>{{ t('password') }}</span>
+              <input v-model="newUserPassword" type="password" />
+            </label>
+          </div>
+          <button type="button" class="primary-button" :disabled="adminLoading" @click="createManagedUser">
+            {{ adminLoading ? t('saving') : t('create') }}
+          </button>
+        </section>
+
+        <section class="panel-card admin-users-card">
+          <div class="card-heading">
+            <h2>{{ t('userList') }}</h2>
+          </div>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ t('username') }}</th>
+                  <th>{{ t('role') }}</th>
+                  <th>{{ t('createdAt') }}</th>
+                  <th>{{ t('updatedAt') }}</th>
+                  <th>{{ t('resetPassword') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="user in adminUsers" :key="user.id">
+                  <td>{{ user.username }}</td>
+                  <td>{{ roleChip(user.role) }}</td>
+                  <td>{{ user.createdAt || '-' }}</td>
+                  <td>{{ user.updatedAt || '-' }}</td>
+                  <td>
+                    <div class="inline-reset">
+                      <input v-model="passwordDrafts[user.id]" type="password" :placeholder="t('newPassword')" />
+                      <button type="button" class="secondary-button inline-button" @click="resetManagedUserPassword(user.id)">
+                        {{ t('reset') }}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel-card">
+          <div class="card-heading">
+            <h2>{{ t('myAccount') }}</h2>
+          </div>
+          <p class="hint-text">{{ currentUser.username }}</p>
+          <div class="form-grid">
+            <label>
+              <span>{{ t('currentPassword') }}</span>
+              <input v-model="accountCurrentPassword" type="password" />
+            </label>
+            <label>
+              <span>{{ t('newPassword') }}</span>
+              <input v-model="accountNewPassword" type="password" />
+            </label>
+          </div>
+          <button type="button" class="primary-button" :disabled="accountLoading" @click="changeOwnPassword">
+            {{ accountLoading ? t('saving') : t('savePassword') }}
+          </button>
+        </section>
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.copilot-shell {
-  height: 100dvh;
-  max-height: 100dvh;
-  padding: 0.5rem;
+.boot-shell,
+.auth-shell,
+.app-shell {
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top left, rgba(44, 143, 107, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(219, 109, 69, 0.08), transparent 22%),
+    linear-gradient(180deg, #f6f3ee 0%, #efe9df 100%);
   color: var(--ink);
-  font-size: 14px;
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 0.5rem;
 }
 
-.tool-banner,
-.sidebar-card,
+.boot-shell,
+.auth-shell {
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.boot-card,
+.auth-card,
+.panel-card,
 .chat-frame,
 .message-card,
 .analysis-result,
+.composer,
 .attach-drop,
-.composer {
+.admin-hero {
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: rgba(255, 253, 250, 0.96);
   box-shadow: var(--shadow);
   backdrop-filter: blur(12px);
+  border-radius: 18px;
 }
 
-.tool-banner {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0.35rem 0.8rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  min-height: 46px;
-  background:
-    radial-gradient(circle at top right, rgba(235, 132, 72, 0.14), transparent 25%),
-    radial-gradient(circle at top left, rgba(52, 133, 106, 0.16), transparent 32%),
-    var(--panel);
+.auth-card {
+  width: min(1120px, 100%);
+  padding: 1.35rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.85fr);
+  gap: 1rem;
 }
 
-.banner-copy {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex: 1;
-}
-
-.language-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  min-width: 0;
-}
-
-.language-label {
-  color: var(--muted);
-  font-size: 0.72rem;
+.boot-card {
+  padding: 1rem 1.25rem;
   font-weight: 700;
 }
 
-.language-chip {
-  border: 1px solid rgba(16, 35, 28, 0.12);
-  border-radius: 999px;
-  padding: 0.24rem 0.6rem;
-  background: rgba(255, 255, 255, 0.65);
-  color: var(--ink);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.language-chip.active {
-  background: rgba(43, 133, 103, 0.14);
-  border-color: rgba(43, 133, 103, 0.26);
-  color: #1c5e47;
-}
-
-.banner-copy h1,
-.chat-header h2,
+.auth-brand h1,
+.auth-login-copy h2,
 .card-heading h2,
+.chat-header h2,
+.admin-hero h1,
 .analysis-result h3,
 .result-table h4 {
   margin: 0;
-  line-height: 1.05;
 }
 
-.banner-copy h1 {
-  font-size: 1.05rem;
-  white-space: nowrap;
-}
-
-.banner-copy p {
-  margin: 0;
-  max-width: none;
+.auth-brand p,
+.auth-login-copy p,
+.admin-hero p,
+.hint-text,
+.attach-caption,
+.composer-file,
+.result-headline,
+.useful-link span,
+.prompt-link {
   color: var(--muted);
-  font-size: 0.76rem;
 }
 
-.banner-kicker,
-.chat-kicker,
+.brand-kicker,
 .fact-label {
   margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  font-size: 0.66rem;
-  font-weight: 700;
+  font-size: 0.68rem;
+  font-weight: 800;
   color: var(--accent-strong);
-  white-space: nowrap;
 }
 
-.sidebar-tool small,
-.useful-link span,
-.prompt-link,
-.attach-caption,
-.composer-file,
-.result-headline {
+.auth-showcase,
+.auth-pane {
+  border-radius: 16px;
+  min-width: 0;
+}
+
+.auth-showcase {
+  padding: 1.2rem;
+  background:
+    radial-gradient(circle at top right, rgba(60, 120, 255, 0.1), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(43, 133, 103, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(247, 244, 238, 0.96), rgba(242, 236, 227, 0.94));
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-pane {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(16, 35, 28, 0.08);
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.auth-brand h1 {
+  font-size: clamp(1.72rem, 2.7vw, 2.45rem);
+  line-height: 1.06;
+  max-width: 12ch;
+}
+
+.auth-showcase .brand-kicker {
+  font-size: clamp(1.05rem, 1.5vw, 1.4rem);
+  letter-spacing: 0.14em;
+  color: #435851;
+}
+
+.auth-brand p,
+.auth-login-copy p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.auth-login-copy {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.auth-login-copy h2 {
+  font-size: 1.35rem;
+}
+
+.auth-pills,
+.feature-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.auth-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hero-pill,
+.feature-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.hero-pill {
+  background: rgba(43, 133, 103, 0.12);
+  color: #1d5f49;
+}
+
+.hero-pill-warm {
+  background: rgba(219, 109, 69, 0.14);
+  color: #9a4f32;
+}
+
+.feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.feature-card,
+.sponsor-card {
+  border-radius: 16px;
+  border: 1px solid rgba(16, 35, 28, 0.08);
+}
+
+.feature-card {
+  padding: 0.9rem;
+  background: rgba(255, 255, 255, 0.7);
+  display: grid;
+  gap: 0.38rem;
+}
+
+.feature-card h3,
+.sponsor-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.feature-card p,
+.sponsor-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.feature-badge {
+  width: fit-content;
+  background: rgba(20, 53, 43, 0.07);
+  color: #36534a;
+}
+
+.sponsor-card {
+  padding: 1rem;
+  background: linear-gradient(135deg, rgba(23, 31, 56, 0.95), rgba(37, 84, 66, 0.95));
+  color: white;
+  text-decoration: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.sponsor-card p {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.sponsor-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sponsor-link {
+  white-space: nowrap;
+  font-weight: 800;
+  color: #f0d290;
+}
+
+.auth-form,
+.form-grid,
+.settings-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.form-grid.compact {
+  grid-template-columns: 1fr;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+label,
+.text-picker {
+  display: grid;
+  gap: 0.35rem;
+}
+
+label span,
+.text-picker > span,
+.language-label {
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--muted);
 }
 
-.workspace {
-  max-width: 1488px;
-  margin: 0 auto;
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
   width: 100%;
-  display: grid;
-  grid-template-columns: 224px minmax(0, 1fr) 224px;
-  gap: 0.5rem;
-  align-items: stretch;
-  min-height: 0;
-  height: 100%;
-  max-height: 100%;
-}
-
-.sidebar {
-  display: grid;
-  gap: 0.75rem;
-  height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  align-content: start;
-  min-height: 0;
-  min-width: 0;
-}
-
-.sidebar-right {
-  position: sticky;
-  top: 0.75rem;
-}
-
-.sidebar-left,
-.sidebar-right {
-  width: 100%;
-}
-
-.sidebar-tool-list {
-  display: grid;
-  gap: 0.45rem;
-}
-
-.sidebar-tool {
-  width: 100%;
-  border: 1px solid rgba(16, 35, 28, 0.1);
+  border: 1px solid rgba(16, 35, 28, 0.12);
   border-radius: 12px;
-  padding: 0.5rem 0.6rem;
-  text-align: left;
-  background: rgba(255, 255, 255, 0.55);
+  padding: 0.6rem 0.72rem;
+  background: rgba(255, 255, 255, 0.9);
   color: var(--ink);
-  display: grid;
-  gap: 0.1rem;
-  font-size: 0.8rem;
 }
 
-.sidebar-tool span {
+textarea {
+  resize: vertical;
+  min-height: 92px;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.primary-button,
+.secondary-button,
+.ghost-button,
+.send-button,
+.mode-chip,
+.language-chip,
+.nav-chip,
+.sidebar-tool,
+.attach-inline,
+.prompt-link {
+  border-radius: 12px;
+  border: 1px solid rgba(16, 35, 28, 0.12);
+  transition: 0.18s ease;
+}
+
+.primary-button,
+.send-button {
+  background: linear-gradient(135deg, #1d8f68, #2f6dd8);
+  color: white;
+  padding: 0.72rem 1rem;
   font-weight: 700;
 }
 
-.sidebar-tool.active {
-  background: linear-gradient(180deg, rgba(255, 241, 232, 0.96), rgba(255, 224, 208, 0.92));
-  border-color: rgba(214, 98, 55, 0.45);
+.secondary-button,
+.ghost-button,
+.attach-inline,
+.prompt-link,
+.mode-chip,
+.language-chip,
+.nav-chip,
+.sidebar-tool {
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
 }
 
-.sidebar-card {
-  border-radius: 18px;
-  padding: 0.7rem;
-  min-width: 0;
+.ghost-button,
+.language-chip,
+.nav-chip,
+.mode-chip {
+  padding: 0.42rem 0.75rem;
+}
+
+.secondary-button,
+.attach-inline,
+.prompt-link,
+.sidebar-tool {
+  padding: 0.58rem 0.72rem;
+}
+
+.export-button {
+  white-space: nowrap;
+}
+
+.language-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.language-chip.active,
+.nav-chip.active,
+.mode-chip.active,
+.sidebar-tool.active,
+.mini-chip.active {
+  background: rgba(43, 133, 103, 0.12);
+  border-color: rgba(43, 133, 103, 0.26);
+  color: #1c5e47;
+}
+
+.auth-hint,
+.form-error,
+.form-success {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.form-error {
+  color: #b7492c;
+}
+
+.form-success {
+  color: #1d7b5b;
+}
+
+.app-shell {
+  padding: 0.6rem;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.app-bar {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 253, 250, 0.94);
+  box-shadow: var(--shadow);
+  padding: 0.45rem 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.app-bar-copy,
+.app-bar-actions,
+.nav-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.user-badge,
+.card-pill,
+.mini-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(16, 35, 28, 0.12);
+  border-radius: 999px;
+  padding: 0.22rem 0.62rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.card-pill.muted {
+  color: var(--muted);
+}
+
+.workspace-page {
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 248px;
+  gap: 0.6rem;
+}
+
+.sidebar {
+  min-height: 0;
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+  overflow-y: auto;
+}
+
+.panel-card {
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.7rem;
 }
 
 .card-heading,
 .chat-header,
 .analysis-result-head,
-.composer-footer,
-.composer-topline {
+.chart-head {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.card-pill {
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  padding: 0.28rem 0.58rem;
-  background: rgba(43, 133, 103, 0.12);
-  color: #1c5e47;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: capitalize;
+  gap: 0.6rem;
 }
 
-.card-pill.muted,
-.card-pill.skipped {
-  background: rgba(16, 35, 28, 0.08);
+.sidebar-tool-list,
+.link-stack,
+.dataset-facts,
+.message-stats,
+.analysis-result-stack,
+.chart-stack {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.sidebar-tool {
+  display: grid;
+  gap: 0.12rem;
+  text-align: left;
+}
+
+.sidebar-tool small {
   color: var(--muted);
 }
 
-.card-pill.error {
-  background: rgba(190, 79, 42, 0.14);
-  color: #8b351a;
-}
-
-.attach-drop {
-  display: grid;
-  gap: 0.35rem;
-  margin-top: 0.7rem;
-  padding: 0.8rem;
-  border-radius: 14px;
-  border-style: dashed;
-  cursor: pointer;
+.sidebar-tool.preview {
+  opacity: 0.7;
 }
 
 .attach-drop input,
 .attach-inline input {
   display: none;
+}
+
+.attach-drop {
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.35rem;
+  cursor: pointer;
 }
 
 .attach-title {
@@ -1601,341 +2369,193 @@ onMounted(() => {
 
 .example-picker {
   display: grid;
-  gap: 0.5rem;
-  margin-top: 0.65rem;
-}
-
-.example-picker label {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.example-caption {
-  margin: 0.5rem 0 0;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-.dataset-facts,
-.settings-grid,
-.link-stack,
-.analysis-result-stack {
-  display: grid;
-  gap: 0.6rem;
+  gap: 0.55rem;
 }
 
 .dataset-facts {
-  margin-top: 0.8rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.dataset-fact {
-  border-radius: 12px;
-  padding: 0.65rem;
-  background: rgba(255, 255, 255, 0.58);
-  min-width: 0;
 }
 
 .dataset-fact-file {
   grid-column: 1 / -1;
 }
 
-.dataset-fact strong {
-  display: block;
+.dataset-fact {
   min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.dataset-facts,
-.settings-grid,
-.link-stack {
-  font-size: 0.88rem;
-}
-
-.settings-grid label,
-.text-picker {
-  display: grid;
-  gap: 0.4rem;
-}
-
-.settings-grid.disabled {
-  opacity: 0.72;
-}
-
-.settings-grid span,
-.text-picker span {
-  font-weight: 600;
-}
-
-.settings-empty,
-.settings-empty-inline {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.45;
-}
-
-.settings-empty {
-  margin-bottom: 0.65rem;
-}
-
-select,
-.composer-input {
-  border: 1px solid rgba(16, 35, 28, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.68);
-  color: var(--ink);
-}
-
-select {
-  padding: 0.58rem 0.7rem;
-  font-size: 0.84rem;
-}
-
-.mini-chip-wrap,
-.selected-tool-strip,
-.analysis-tools,
-.message-stats,
-.chat-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.mini-chip {
-  border: 1px solid rgba(16, 35, 28, 0.12);
-  border-radius: 999px;
-  padding: 0.25rem 0.55rem;
-  background: rgba(255, 255, 255, 0.62);
-  color: var(--ink);
-  font-size: 0.72rem;
-}
-
-.mini-chip.active {
-  background: rgba(43, 133, 103, 0.12);
-  border-color: rgba(43, 133, 103, 0.2);
-}
-
-.prompt-link,
-.useful-link {
-  border: 1px solid rgba(16, 35, 28, 0.09);
+  padding: 0.55rem 0.65rem;
   border-radius: 12px;
-  padding: 0.68rem 0.75rem;
-  background: rgba(255, 255, 255, 0.58);
-  text-align: left;
-  text-decoration: none;
-  font-size: 0.82rem;
-  min-width: 0;
-}
-
-.useful-link {
+  background: rgba(243, 239, 232, 0.88);
   display: grid;
-  gap: 0.2rem;
-  color: var(--ink);
-  overflow-wrap: anywhere;
+  gap: 0.18rem;
 }
 
 .chat-panel {
   min-width: 0;
-  height: 100%;
-  min-height: 0;
 }
 
 .chat-frame {
   height: 100%;
   min-height: 0;
-  border-radius: 22px;
-  padding: 0.7rem;
+  padding: 0.85rem;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 0.55rem;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 241, 0.92), rgba(252, 245, 236, 0.9));
+  gap: 0.7rem;
 }
 
 .chat-history {
-  overflow: auto;
-  padding-right: 0.2rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.15rem;
   display: grid;
-  gap: 0.75rem;
+  gap: 0.7rem;
 }
 
 .message-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 0.55rem;
-  align-items: start;
-}
-
-.message-row.user {
-  grid-template-columns: minmax(0, 1fr) 40px;
-}
-
-.message-row.user .message-card {
-  order: 1;
-}
-
-.message-row.user .message-avatar {
-  order: 2;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.6rem;
 }
 
 .message-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
-  font-size: 0.68rem;
+  background: linear-gradient(135deg, rgba(44, 143, 107, 0.16), rgba(74, 108, 247, 0.16));
+  color: #245745;
   font-weight: 800;
-  background: rgba(16, 35, 28, 0.08);
-  color: var(--ink);
-}
-
-.message-row.assistant .message-avatar {
-  background: rgba(43, 133, 103, 0.14);
-  color: #1f634b;
-}
-
-.message-row.user .message-avatar {
-  background: rgba(214, 98, 55, 0.14);
-  color: #9b4123;
 }
 
 .message-card {
-  border-radius: 18px;
-  padding: 0.8rem 0.85rem;
-}
-
-.message-card.user {
-  background: linear-gradient(180deg, rgba(255, 234, 224, 0.92), rgba(255, 223, 209, 0.92));
-}
-
-.message-card.assistant {
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.message-card.error {
-  border-color: rgba(190, 79, 42, 0.2);
-  background: rgba(255, 239, 234, 0.94);
-}
-
-.message-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.4rem;
-  font-size: 0.68rem;
-  color: var(--muted);
-}
-
-.message-tools {
-  color: var(--accent-strong);
-}
-
-.message-text,
-.result-headline {
-  margin: 0;
-  white-space: pre-wrap;
-  font-size: 0.9rem;
-}
-
-.summary-block {
-  margin: 0;
-  white-space: pre-wrap;
-  font-family: inherit;
-  line-height: 1.7;
-  font-size: 0.9rem;
-}
-
-.summary-block.secondary {
-  color: var(--muted);
-}
-
-.answer-panel,
-.summary-panel {
-  display: grid;
-  gap: 0.35rem;
-  margin-bottom: 0.75rem;
-}
-
-.chart-stack {
-  display: grid;
-  gap: 0.7rem;
-  margin-top: 0.8rem;
-}
-
-.chart-card {
-  border: 1px solid rgba(16, 35, 28, 0.08);
-  border-radius: 16px;
-  padding: 0.72rem;
-  background: rgba(255, 255, 255, 0.7);
+  padding: 0.8rem;
   display: grid;
   gap: 0.6rem;
 }
 
-.chart-head {
+.message-meta {
   display: flex;
   justify-content: space-between;
-  gap: 0.55rem;
-  align-items: flex-start;
-  flex-wrap: wrap;
+  gap: 0.6rem;
+  color: var(--muted);
+  font-size: 0.8rem;
 }
 
-.chart-head h4 {
+.message-text,
+.summary-block {
   margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.55;
+}
+
+.summary-block {
+  font-family: inherit;
+  background: rgba(244, 240, 233, 0.72);
+  padding: 0.8rem;
+  border-radius: 12px;
+}
+
+.summary-block.secondary {
+  background: rgba(240, 245, 244, 0.88);
+}
+
+.table-shell {
+  overflow: auto;
+  border: 1px solid rgba(16, 35, 28, 0.08);
+  border-radius: 12px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.84rem;
 }
 
-.chart-legend {
+th,
+td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid rgba(16, 35, 28, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: rgba(246, 243, 238, 0.92);
+}
+
+.analysis-tools,
+.selected-tool-strip,
+.mini-chip-wrap,
+.chart-legend,
+.tool-mode-switch,
+.composer-topline,
+.composer-footer,
+.chat-status {
   display: flex;
+  gap: 0.45rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.analysis-label {
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.insight-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.chart-card,
+.result-table {
+  display: grid;
   gap: 0.5rem;
+  padding: 0.7rem;
+  border-radius: 14px;
+  background: rgba(248, 246, 241, 0.82);
+}
+
+.chart-legend {
+  justify-content: flex-end;
 }
 
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
-  color: var(--muted);
+  gap: 0.3rem;
   font-size: 0.74rem;
+  color: var(--muted);
 }
 
 .legend-dot {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
 }
 
 .chart-bars {
   display: grid;
-  gap: 0.45rem;
+  gap: 0.38rem;
 }
 
 .bar-row {
   display: grid;
-  grid-template-columns: minmax(0, 108px) minmax(0, 1fr) auto;
+  grid-template-columns: 88px minmax(0, 1fr) 54px;
   gap: 0.5rem;
   align-items: center;
 }
 
 .bar-label,
-.bar-value,
-.chart-axis-text {
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.bar-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.bar-value {
+  font-size: 0.78rem;
 }
 
 .bar-track {
-  height: 0.62rem;
+  height: 10px;
   border-radius: 999px;
   background: rgba(16, 35, 28, 0.08);
   overflow: hidden;
@@ -1948,225 +2568,170 @@ select {
 }
 
 .chart-surface {
-  overflow: auto hidden;
+  overflow-x: auto;
 }
 
 .chart-svg {
   width: 100%;
-  min-width: 420px;
+  min-width: 460px;
   height: auto;
-  display: block;
 }
 
-.chart-axis {
-  stroke: rgba(16, 35, 28, 0.22);
+.chart-axis,
+.chart-grid-line {
+  stroke: rgba(16, 35, 28, 0.12);
   stroke-width: 1;
 }
 
 .chart-grid-line {
-  stroke: rgba(16, 35, 28, 0.08);
-  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.chart-axis-text {
+  fill: rgba(16, 35, 28, 0.58);
+  font-size: 11px;
 }
 
 .chart-line {
   fill: none;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.chart-band {
-  stroke: none;
+  stroke-width: 2.5;
 }
 
 .chart-point {
-  stroke: rgba(255, 255, 255, 0.75);
-  stroke-width: 1.25;
-}
-
-.chart-point-3d {
-  stroke: rgba(255, 255, 255, 0.9);
+  stroke: rgba(255, 255, 255, 0.72);
   stroke-width: 1.4;
-  filter: drop-shadow(0 6px 10px rgba(16, 35, 28, 0.18));
-}
-
-.chart-shadow {
-  filter: blur(3px);
-}
-
-.chart-highlight {
-  pointer-events: none;
-}
-
-.analysis-label {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent-strong);
-}
-
-.table-shell {
-  margin-top: 0.65rem;
-  overflow: auto;
-  border-radius: 14px;
-  border: 1px solid rgba(16, 35, 28, 0.08);
-  background: rgba(255, 255, 255, 0.72);
-}
-
-.insight-list {
-  margin: 0.55rem 0 0;
-  padding-left: 1.2rem;
 }
 
 .result-notes {
-  margin-top: 0.65rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: 12px;
-  background: rgba(214, 98, 55, 0.09);
-  color: #8b351a;
+  display: grid;
+  gap: 0.32rem;
+  color: #9f5537;
+  font-size: 0.84rem;
 }
 
 .composer {
-  border-radius: 18px;
-  padding: 0.65rem;
+  padding: 0.75rem;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 .attach-inline {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  border-radius: 999px;
-  padding: 0.32rem 0.68rem;
-  background: rgba(43, 133, 103, 0.1);
-  color: #1f634b;
-  font-weight: 700;
-  cursor: pointer;
-  font-size: 0.84rem;
-  border: none;
+  gap: 0.35rem;
 }
 
-.attach-inline-secondary,
-.secondary-button {
-  background: rgba(16, 35, 28, 0.07);
-  color: var(--ink);
+.attach-inline-secondary {
+  background: rgba(244, 240, 233, 0.92);
 }
 
-.secondary-button {
-  border: 1px solid rgba(16, 35, 28, 0.1);
-  border-radius: 12px;
-  padding: 0.5rem 0.7rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.attach-inline:disabled,
-.secondary-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.composer-input {
-  width: 100%;
-  resize: vertical;
-  min-height: 66px;
-  max-height: 110px;
-  padding: 0.65rem 0.75rem;
-  font-size: 0.88rem;
+.composer-file {
+  font-size: 0.82rem;
 }
 
 .send-button {
-  border: none;
-  border-radius: 14px;
-  padding: 0.7rem 1rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: white;
-  font-weight: 800;
-  box-shadow: 0 14px 26px rgba(190, 79, 42, 0.22);
-  font-size: 0.84rem;
+  min-width: 160px;
 }
 
-.send-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-  box-shadow: none;
+.settings-grid.disabled {
+  opacity: 0.65;
 }
 
-@media (max-width: 1100px) {
-  .copilot-shell {
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    display: block;
-  }
+.text-picker .mini-chip {
+  background: rgba(255, 255, 255, 0.92);
+}
 
-  .tool-banner {
-    display: block;
-  }
+.useful-link {
+  display: grid;
+  gap: 0.18rem;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.65rem 0.72rem;
+  border-radius: 12px;
+  background: rgba(247, 243, 236, 0.85);
+}
 
-  .banner-copy {
-    display: grid;
-    gap: 0.2rem;
-  }
+.admin-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+  overflow: auto;
+}
 
-  .workspace {
+.admin-hero {
+  padding: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.admin-users-card {
+  grid-column: 1 / -1;
+}
+
+.inline-reset {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.inline-button {
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .auth-card {
     grid-template-columns: 1fr;
-    height: auto;
-    max-height: none;
   }
 
-  .sidebar-right {
-    position: static;
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-page,
+  .admin-grid {
+    grid-template-columns: 1fr;
   }
 
   .sidebar {
-    height: auto;
     overflow: visible;
-  }
-
-  .chat-frame {
-    min-height: auto;
-    max-height: none;
-    height: auto;
   }
 }
 
-@media (max-width: 720px) {
-  .copilot-shell {
-    padding: 0.75rem;
+@media (max-width: 760px) {
+  .app-shell {
+    padding: 0.45rem;
   }
 
-  .tool-banner,
-  .chat-frame,
-  .sidebar-card,
-  .message-card,
-  .composer {
-    border-radius: 18px;
+  .app-bar,
+  .admin-hero,
+  .chat-header,
+  .analysis-result-head,
+  .chart-head {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  .dataset-facts {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .message-row,
-  .message-row.user {
+  .message-row {
     grid-template-columns: 1fr;
   }
 
-  .message-row.user .message-card,
-  .message-row.user .message-avatar {
-    order: initial;
+  .form-grid,
+  .dataset-facts {
+    grid-template-columns: 1fr;
   }
 
-  .message-avatar {
-    display: none;
-  }
-
-  .composer-footer,
-  .chat-header,
-  .card-heading {
+  .sponsor-card {
     align-items: flex-start;
     flex-direction: column;
   }

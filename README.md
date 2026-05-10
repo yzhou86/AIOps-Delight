@@ -1,18 +1,39 @@
-# DataPilot
+# SciPilot
 
-AI-first data analysis workspace for AIOps datasets.
+AI-first data and research workspace for students and researchers.
 
 ![DataPilot](data-pilot.png)
+
+Default admin login after first startup:
+
+- username: `admin`
+- password: `nimda`
 
 The project now uses the AI agent app as the primary surface:
 
 - `frontend/`: Vue 3 chat-style analysis interface, built and served by Flask
-- `backend/`: unified Flask app for API endpoints, Qwen-backed answers, and static frontend serving
+- `backend/`: unified Flask app for API endpoints, LLM-backed answers, and static frontend serving
+- `backend/data/datapilot.db`: local SQLite database for users and admin-managed LLM settings
 - `tools/`: the original ML/AI scripts, experiments, and reference assets preserved as supporting tools
 
 ## What It Does
 
-Upload a CSV or Excel file, or choose one of the built-in example datasets in the UI, then select the ML/AI tools you want to run, add a plain-language prompt, and let the agent analyze the dataset. The interface now supports English and Chinese switching, and the Qwen answer path follows the selected UI language.
+Upload a CSV or Excel file, or choose one of the built-in example datasets in the UI, then select the ML/AI tools you want to run, add a plain-language prompt, and let the agent analyze the dataset. The interface now supports English and Chinese switching, and the LLM answer path follows the selected UI language.
+
+SciPilot is aimed at students, labs, and researchers. Phase 1 focuses on intelligent data Q&A. Later phases will expand into research exploration and deeper "deep researcher" workflows.
+
+The chat backend now supports two LLM API styles:
+
+- Qwen / DashScope
+- OpenAI GPT-compatible chat completions APIs
+
+It also now includes:
+
+- Login page and session-based access control
+- User workspace after sign-in
+- Admin console for user management
+- Admin-only LLM configuration stored in SQLite
+- Export current chat history to PDF
 
 Available analysis tools include:
 
@@ -52,7 +73,7 @@ AIOps-Delight/
 
 ## Run Locally
 
-The app now has one production-style startup point: the unified Flask server on `http://127.0.0.1:5001`.
+The app now has one production-style startup point: the unified Flask server on `http://127.0.0.1:5005`.
 
 ### Unified App
 
@@ -78,7 +99,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` is still available for frontend-only development and proxies API requests to the Flask server on `http://127.0.0.1:5001`.
+`npm run dev` is still available for frontend-only development and proxies API requests to the Flask server on `http://127.0.0.1:5005`.
 
 ## Start Scripts
 
@@ -110,16 +131,41 @@ Notes:
 - `backend.*` builds the frontend and then starts the same unified Flask app.
 - The Flask app serves both the API and the built SPA from `frontend/dist`.
 
-## Optional Qwen LLM
+## Optional LLM Providers
 
-If you want user questions to also get Qwen-generated chat answers, set:
+If you want user questions to also get live LLM-generated chat answers, configure one of these modes:
+
+### Auto Mode
+
+`auto` is the default. It checks providers in this order:
+
+1. Qwen / DashScope
+2. OpenAI-compatible API
 
 ```bash
+export LLM_PROVIDER=auto
+```
+
+### Qwen / DashScope Mode
+
+```bash
+export LLM_PROVIDER=qwen
 export DASHSCOPE_API_KEY=your_key
 export DASHSCOPE_MODEL=qwen-turbo
 ```
 
-Without those variables, the app still performs the local data science analysis and returns deterministic fallback answers and summaries.
+### OpenAI-Compatible Mode
+
+```bash
+export LLM_PROVIDER=openai_compatible
+export OPENAI_COMPATIBLE_API_KEY=your_key
+export OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
+export OPENAI_COMPATIBLE_MODEL=gpt-4o-mini
+```
+
+The backend also accepts the standard aliases `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL`.
+
+Without a valid LLM provider, the app still performs the local data science analysis and returns deterministic fallback answers and summaries.
 
 ## Environment Variables
 
@@ -134,9 +180,19 @@ cp .env.example .env
 Then edit `.env` and fill in your real keys.
 
 ```bash
+export LLM_PROVIDER=auto
 export DASHSCOPE_API_KEY=your_qwen_key
 export DASHSCOPE_MODEL=qwen-turbo
+export OPENAI_COMPATIBLE_API_KEY=your_openai_compatible_key
+export OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
+export OPENAI_COMPATIBLE_MODEL=gpt-4o-mini
 export QIANFAN_BEARER_TOKEN=your_baidu_qianfan_bearer_token
+```
+
+Recommended for production:
+
+```bash
+export APP_SECRET_KEY=replace_this_with_a_long_random_secret
 ```
 
 ## Docker Deployment
@@ -147,7 +203,7 @@ export QIANFAN_BEARER_TOKEN=your_baidu_qianfan_bearer_token
 docker build -t datapilot:latest .
 docker run -d \
   --name datapilot \
-  -p 5001:5001 \
+  -p 5005:5005 \
   --env-file .env \
   -v $(pwd)/backend/uploads:/app/backend/uploads \
   datapilot:latest
@@ -170,6 +226,7 @@ docker compose down
 Notes:
 
 - `backend/uploads` is mounted into the container so uploaded files persist across restarts.
+- `backend/data` is mounted into the container so the SQLite database persists across restarts.
 - The container serves the unified Flask app and the built frontend together.
 - The service reads secrets from the root `.env` file through `env_file`.
 
@@ -180,7 +237,8 @@ Notes:
 Project root `.env`:
 
 ```bash
-PORT=5001
+PORT=5005
+LLM_PROVIDER=qwen
 DASHSCOPE_API_KEY=sk-your-real-dashscope-key
 DASHSCOPE_MODEL=qwen-turbo
 ```
@@ -192,6 +250,26 @@ After saving `.env`, restart the unified Flask app:
 ```
 
 If `DASHSCOPE_API_KEY` is present, each user message will try to call Qwen and produce a natural-language answer in the chat.
+
+### OpenAI-Compatible Example
+
+Project root `.env`:
+
+```bash
+PORT=5005
+LLM_PROVIDER=openai_compatible
+OPENAI_COMPATIBLE_API_KEY=sk-your-real-openai-compatible-key
+OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
+OPENAI_COMPATIBLE_MODEL=gpt-4o-mini
+```
+
+After saving `.env`, restart the unified Flask app:
+
+```bash
+./scripts/start/start_all.sh
+```
+
+If `OPENAI_COMPATIBLE_API_KEY` and `OPENAI_COMPATIBLE_BASE_URL` are present, each user message will try to call the configured OpenAI-compatible chat API and produce a natural-language answer in the chat.
 
 ## Legacy AIOps Reference
 
