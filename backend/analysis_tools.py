@@ -2,6 +2,7 @@ import json
 import math
 import os
 from pathlib import Path
+import ssl
 import urllib.error
 import urllib.request
 
@@ -1061,6 +1062,16 @@ def normalize_language(language):
 
 
 def build_agent_summary(dataset_info, prompt, results, language="en", llm_settings=None):
+    return build_agent_summary_bundle(
+        dataset_info,
+        prompt,
+        results,
+        language=language,
+        llm_settings=llm_settings,
+    )["text"]
+
+
+def build_agent_summary_bundle(dataset_info, prompt, results, language="en", llm_settings=None):
     language = normalize_language(language)
     successful = [result for result in results if result["status"] == "ok"]
     skipped = [result for result in results if result["status"] == "skipped"]
@@ -1094,15 +1105,34 @@ def build_agent_summary(dataset_info, prompt, results, language="en", llm_settin
             for result in skipped:
                 fallback_lines.append(f"- {result['toolName']}: {result['headline']}")
 
-    llm_summary = _maybe_build_llm_summary(dataset_info, prompt, results, language, llm_settings)
-    return llm_summary or "\n".join(fallback_lines)
+    llm_summary = _maybe_build_llm_summary_bundle(dataset_info, prompt, results, language, llm_settings)
+    return {
+        "text": llm_summary["text"] or "\n".join(fallback_lines),
+        "source": "llm" if llm_summary["text"] else "fallback",
+        "llm": llm_summary["llm"],
+    }
 
 
 def build_agent_answer(dataset_info, prompt, results, chat_history=None, language="en", llm_settings=None):
+    return build_agent_answer_bundle(
+        dataset_info,
+        prompt,
+        results,
+        chat_history=chat_history,
+        language=language,
+        llm_settings=llm_settings,
+    )["text"]
+
+
+def build_agent_answer_bundle(dataset_info, prompt, results, chat_history=None, language="en", llm_settings=None):
     language = normalize_language(language)
     fallback_answer = _build_fallback_answer(dataset_info, prompt, results, language)
-    llm_answer = _maybe_build_llm_answer(dataset_info, prompt, results, chat_history or [], language, llm_settings)
-    return llm_answer or fallback_answer
+    llm_answer = _maybe_build_llm_answer_bundle(dataset_info, prompt, results, chat_history or [], language, llm_settings)
+    return {
+        "text": llm_answer["text"] or fallback_answer,
+        "source": "llm" if llm_answer["text"] else "fallback",
+        "llm": llm_answer["llm"],
+    }
 
 
 def _build_fallback_answer(dataset_info, prompt, results, language):
@@ -1159,10 +1189,10 @@ def _build_fallback_answer(dataset_info, prompt, results, language):
     return "\n".join(lines)
 
 
-def _maybe_build_llm_summary(dataset_info, prompt, results, language, llm_settings=None):
+def _maybe_build_llm_summary_bundle(dataset_info, prompt, results, language, llm_settings=None):
     provider = _resolve_llm_provider(llm_settings)
     if not provider:
-        return None
+        return {"text": None, "llm": None}
 
     compact_results = []
     for result in results:
@@ -1192,13 +1222,13 @@ def _maybe_build_llm_summary(dataset_info, prompt, results, language, llm_settin
             f"Dataset info: {json.dumps(dataset_info, ensure_ascii=False)}\n"
             f"Tool results: {json.dumps(compact_results, ensure_ascii=False)}"
         )
-    return _invoke_llm_prompt(summary_prompt, provider)
+    return _invoke_llm_prompt_bundle(summary_prompt, provider)
 
 
-def _maybe_build_llm_answer(dataset_info, prompt, results, chat_history, language, llm_settings=None):
+def _maybe_build_llm_answer_bundle(dataset_info, prompt, results, chat_history, language, llm_settings=None):
     provider = _resolve_llm_provider(llm_settings)
     if not provider or not prompt:
-        return None
+        return {"text": None, "llm": _public_provider_info(provider) if provider else None}
 
     compact_results = []
     for result in results:
@@ -1236,7 +1266,14 @@ def _maybe_build_llm_answer(dataset_info, prompt, results, chat_history, languag
             f"Tool results: {json.dumps(compact_results, ensure_ascii=False)}\n"
             f"User question: {prompt}"
         )
-    return _invoke_llm_prompt(answer_prompt, provider)
+    return _invoke_llm_prompt_bundle(answer_prompt, provider)
+
+
+def get_llm_runtime_info(llm_settings=None):
+    provider = _resolve_llm_provider(llm_settings)
+    if not provider:
+        return None
+    return _public_provider_info(provider)
 
 
 def _resolve_llm_provider(llm_settings=None):
@@ -1324,8 +1361,15 @@ def _llm_setting(llm_settings, key, env_names, default=""):
     return default
 
 
+def _canonicalize_openai_compatible_base_url(base_url):
+    cleaned = str(base_url or "").strip()
+    if not cleaned:
+        return ""
+    return cleaned.replace("api.fasttoken.ai", "api.fastoken.ai")
+
+
 def _normalize_openai_compatible_url(base_url):
-    cleaned = base_url.rstrip("/")
+    cleaned = _canonicalize_openai_compatible_base_url(base_url).rstrip("/")
     if cleaned.endswith("/chat/completions"):
         return cleaned
     if cleaned.endswith("/v1"):
@@ -1334,19 +1378,39 @@ def _normalize_openai_compatible_url(base_url):
 
 
 def _invoke_llm_prompt(prompt_text, provider):
+    return _invoke_llm_prompt_bundle(prompt_text, provider)["text"]
+
+
+def _public_provider_info(provider):
+    info = {
+        "provider": provider.get("provider"),
+        "model": provider.get("model"),
+    }
+    if provider.get("provider") == "openai_compatible":
+        info["base_url"] = provider.get("base_url")
+    return info
+
+
+def _invoke_llm_prompt_bundle(prompt_text, provider):
+    info = _public_provider_info(provider)
     try:
         if provider["provider"] == "qwen":
             model = ChatTongyi(api_key=provider["api_key"], model=provider["model"])
             response = model.invoke(prompt_text)
-            return getattr(response, "content", None) or str(response)
+            text = (getattr(response, "content", None) or str(response) or "").strip() or None
+            return {"text": text, "llm": {**info, "status": "ok" if text else "error", "error": None if text else "Empty content was returned."}}
         if provider["provider"] == "openai_compatible":
-            return _invoke_openai_compatible_prompt(prompt_text, provider)
-    except Exception:
-        return None
-    return None
+            return _invoke_openai_compatible_prompt_bundle(prompt_text, provider)
+    except Exception as exc:
+        return {"text": None, "llm": {**info, "status": "error", "error": str(exc)}}
+    return {"text": None, "llm": {**info, "status": "error", "error": "Unsupported provider."}}
 
 
 def _invoke_openai_compatible_prompt(prompt_text, provider):
+    return _invoke_openai_compatible_prompt_bundle(prompt_text, provider)["text"]
+
+
+def _invoke_openai_compatible_prompt_bundle(prompt_text, provider):
     request_body = {
         "model": provider["model"],
         "messages": [{"role": "user", "content": prompt_text}],
@@ -1358,26 +1422,45 @@ def _invoke_openai_compatible_prompt(prompt_text, provider):
         "Authorization": f"Bearer {provider['api_key']}",
     }
     req = urllib.request.Request(provider["base_url"], data=data, headers=headers, method="POST")
+    info = _public_provider_info(provider)
+    ssl_context = None
     try:
-        with urllib.request.urlopen(req, timeout=120) as response:
+        import certifi
+
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        ssl_context = None
+    try:
+        with urllib.request.urlopen(req, timeout=120, context=ssl_context) as response:
             payload = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError):
-        return None
+    except urllib.error.HTTPError as exc:
+        message = str(exc)
+        try:
+            error_payload = json.loads(exc.read().decode("utf-8"))
+            error_data = error_payload.get("error") or {}
+            message = error_data.get("message") or error_data.get("code") or json.dumps(error_payload, ensure_ascii=False)
+        except Exception:
+            pass
+        return {"text": None, "llm": {**info, "status": "error", "error": message}}
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        return {"text": None, "llm": {**info, "status": "error", "error": str(exc)}}
 
     choices = payload.get("choices") or []
     if not choices:
-        return None
+        return {"text": None, "llm": {**info, "status": "error", "error": "No choices were returned by the provider."}}
     message = choices[0].get("message") or {}
     content = message.get("content")
     if isinstance(content, str):
-        return content.strip()
+        text = content.strip() or None
+        return {"text": text, "llm": {**info, "status": "ok" if text else "error", "error": None if text else "Empty content was returned."}}
     if isinstance(content, list):
         parts = []
         for item in content:
             if isinstance(item, dict) and item.get("type") == "text":
                 parts.append(str(item.get("text") or ""))
-        return "\n".join(part for part in parts if part).strip() or None
-    return None
+        text = "\n".join(part for part in parts if part).strip() or None
+        return {"text": text, "llm": {**info, "status": "ok" if text else "error", "error": None if text else "Empty content was returned."}}
+    return {"text": None, "llm": {**info, "status": "error", "error": "Unsupported content format returned by the provider."}}
 
 
 def _infer_column_kind(series):

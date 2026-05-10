@@ -13,7 +13,10 @@ try:
     from analysis_tools import (
         auto_select_tools,
         build_agent_answer,
+        build_agent_answer_bundle,
         build_agent_summary,
+        build_agent_summary_bundle,
+        get_llm_runtime_info,
         inspect_dataframe,
         load_dataframe,
         run_tool,
@@ -25,7 +28,10 @@ except ModuleNotFoundError:
     from .analysis_tools import (
         auto_select_tools,
         build_agent_answer,
+        build_agent_answer_bundle,
         build_agent_summary,
+        build_agent_summary_bundle,
+        get_llm_runtime_info,
         inspect_dataframe,
         load_dataframe,
         run_tool,
@@ -290,13 +296,15 @@ def normalize_llm_payload(payload):
     provider = str(payload.get("provider") or "auto").strip().lower()
     if provider not in {"auto", "qwen", "openai_compatible"}:
         provider = "auto"
+    openai_base_url = str(payload.get("openaiBaseUrl") or payload.get("openai_base_url") or "https://api.openai.com/v1").strip()
+    if "api.fasttoken.ai" in openai_base_url:
+        openai_base_url = openai_base_url.replace("api.fasttoken.ai", "api.fastoken.ai")
     return {
         "provider": provider,
         "qwen_api_key": str(payload.get("qwenApiKey") or payload.get("qwen_api_key") or "").strip(),
         "qwen_model": str(payload.get("qwenModel") or payload.get("qwen_model") or "qwen-turbo").strip() or "qwen-turbo",
         "openai_api_key": str(payload.get("openaiApiKey") or payload.get("openai_api_key") or "").strip(),
-        "openai_base_url": str(payload.get("openaiBaseUrl") or payload.get("openai_base_url") or "https://api.openai.com/v1").strip()
-        or "https://api.openai.com/v1",
+        "openai_base_url": openai_base_url or "https://api.openai.com/v1",
         "openai_model": str(payload.get("openaiModel") or payload.get("openai_model") or "gpt-4o-mini").strip()
         or "gpt-4o-mini",
     }
@@ -304,6 +312,13 @@ def normalize_llm_payload(payload):
 
 def build_runtime_llm_config():
     stored = dao.get_llm_config()
+    openai_base_url = (
+        stored.get("openai_base_url")
+        or os.getenv("OPENAI_COMPATIBLE_BASE_URL", "")
+        or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    )
+    if "api.fasttoken.ai" in openai_base_url:
+        openai_base_url = openai_base_url.replace("api.fasttoken.ai", "api.fastoken.ai")
     return {
         "provider": stored.get("provider") or os.getenv("LLM_PROVIDER", "auto"),
         "qwen_api_key": stored.get("qwen_api_key") or os.getenv("DASHSCOPE_API_KEY", ""),
@@ -311,9 +326,7 @@ def build_runtime_llm_config():
         "openai_api_key": stored.get("openai_api_key")
         or os.getenv("OPENAI_COMPATIBLE_API_KEY", "")
         or os.getenv("OPENAI_API_KEY", ""),
-        "openai_base_url": stored.get("openai_base_url")
-        or os.getenv("OPENAI_COMPATIBLE_BASE_URL", "")
-        or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        "openai_base_url": openai_base_url,
         "openai_model": stored.get("openai_model")
         or os.getenv("OPENAI_COMPATIBLE_MODEL", "")
         or os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
@@ -419,7 +432,7 @@ def update_user_password(user_id):
 @app.get("/api/admin/llm-config")
 @admin_required
 def get_llm_config():
-    return jsonify({"config": dao.get_llm_config()})
+    return jsonify({"config": normalize_llm_payload(dao.get_llm_config())})
 
 
 @app.put("/api/admin/llm-config")
@@ -625,7 +638,7 @@ def analyze_dataset():
 
     chat_history = dataset_record.setdefault("chat_history", [])
     llm_settings = build_runtime_llm_config()
-    answer = build_agent_answer(
+    answer_bundle = build_agent_answer_bundle(
         dataset_info,
         prompt,
         results,
@@ -633,13 +646,16 @@ def analyze_dataset():
         language=language,
         llm_settings=llm_settings,
     )
-    summary = build_agent_summary(
+    summary_bundle = build_agent_summary_bundle(
         dataset_info,
         prompt,
         results,
         language=language,
         llm_settings=llm_settings,
     )
+    answer = answer_bundle["text"]
+    summary = summary_bundle["text"]
+    llm_runtime = get_llm_runtime_info(llm_settings)
 
     if prompt:
         chat_history.append({"role": "user", "content": prompt})
@@ -655,6 +671,13 @@ def analyze_dataset():
             "results": results,
             "selectedTools": selected_tools,
             "toolMode": tool_mode,
+            "llm": {
+                "runtime": llm_runtime,
+                "answer": answer_bundle["llm"],
+                "summary": summary_bundle["llm"],
+                "answerSource": answer_bundle["source"],
+                "summarySource": summary_bundle["source"],
+            },
             "resolvedContext": {
                 "targetColumn": context.get("target_column"),
                 "timeColumn": context.get("time_column"),
@@ -719,4 +742,11 @@ def serve_frontend(path):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5005"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug = str(os.getenv("APP_DEBUG", "")).strip().lower() in {"1", "true", "yes", "on"}
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=debug,
+        use_reloader=False,
+        threaded=True,
+    )

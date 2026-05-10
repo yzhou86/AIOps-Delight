@@ -83,6 +83,9 @@ const COPY = {
     datetime: 'datetime',
     aiAnswer: 'AI Answer',
     analysisSummary: 'Analysis Summary',
+    llmStatus: 'LLM status',
+    llmFallback: 'Fallback answer',
+    llmErrorPrefix: 'LLM error',
     visuals: 'Visual Insights',
     attachFile: 'Attach file',
     loadingExample: 'Loading example...',
@@ -234,6 +237,9 @@ const COPY = {
     datetime: '时间列',
     aiAnswer: 'AI 回答',
     analysisSummary: '分析摘要',
+    llmStatus: 'LLM 状态',
+    llmFallback: '回退回答',
+    llmErrorPrefix: 'LLM 错误',
     visuals: '可视化图表',
     attachFile: '上传文件',
     loadingExample: '正在加载示例...',
@@ -607,6 +613,31 @@ function roleLabel(role) {
 
 function roleChip(role) {
   return role === 'admin' ? t('roleAdmin') : t('roleUser')
+}
+
+function llmProviderLabel(provider) {
+  if (provider === 'qwen') return t('providerQwen')
+  if (provider === 'openai_compatible') return t('providerOpenAI')
+  return t('providerAuto')
+}
+
+function llmStatusLine(analysis) {
+  const answerMeta = analysis?.llm?.answer
+  const runtimeMeta = analysis?.llm?.runtime
+  const source = analysis?.llm?.answerSource
+  const provider = answerMeta?.provider || runtimeMeta?.provider
+  const model = answerMeta?.model || runtimeMeta?.model
+  const parts = [t('llmStatus') + ':']
+  if (provider) parts.push(llmProviderLabel(provider))
+  if (model) parts.push(model)
+  if (source === 'fallback') parts.push(`(${t('llmFallback')})`)
+  return parts.join(' ')
+}
+
+function llmErrorLine(analysis) {
+  const error = analysis?.llm?.answer?.error || analysis?.llm?.summary?.error
+  if (!error) return ''
+  return `${t('llmErrorPrefix')}: ${error}`
 }
 
 function datasetHeadline(dataset) {
@@ -1541,6 +1572,11 @@ onMounted(async () => {
                   <section class="answer-panel">
                     <div class="analysis-label">{{ t('aiAnswer') }}</div>
                     <pre class="summary-block">{{ message.answer || message.text }}</pre>
+                  </section>
+
+                  <section v-if="message.analysis?.llm" class="llm-meta-panel">
+                    <span class="mini-chip">{{ llmStatusLine(message.analysis) }}</span>
+                    <p v-if="llmErrorLine(message.analysis)" class="llm-warning">{{ llmErrorLine(message.analysis) }}</p>
                   </section>
 
                   <section v-if="message.summary && message.summary !== (message.answer || message.text)" class="summary-panel">
@@ -2583,11 +2619,18 @@ th {
 .tool-mode-switch,
 .composer-topline,
 .composer-footer,
-.chat-status {
+.chat-status,
+.llm-meta-panel {
   display: flex;
   gap: 0.45rem;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.llm-warning {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #9f5537;
 }
 
 .analysis-label {
