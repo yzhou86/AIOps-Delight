@@ -1,6 +1,5 @@
 .coverage
 .DS_Store
-.github/
 .idea/
 .venv/
 .vscode/
