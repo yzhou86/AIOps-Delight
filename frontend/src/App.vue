@@ -39,6 +39,7 @@ const COPY = {
     password: 'Password',
     signIn: 'Sign in',
     signingIn: 'Signing in...',
+    guestSignIn: 'Preview as guest',
     loginError: 'Login failed.',
     guestBadge: 'Preview',
     guestModeNotice: 'Guest mode is read-only. Upload, tool changes, and new agent conversations are disabled.',
@@ -193,6 +194,7 @@ const COPY = {
     password: '密码',
     signIn: '登录',
     signingIn: '登录中...',
+    guestSignIn: '一键访客预览',
     loginError: '登录失败。',
     guestBadge: '预览',
     guestModeNotice: '访客模式为只读预览，不允许上传文件、切换工具或发起新的智能问数对话。',
@@ -712,7 +714,7 @@ async function hydrateAfterLogin() {
   }
 }
 
-async function login() {
+async function loginWithCredentials(username, password) {
   authLoading.value = true
   authError.value = ''
   try {
@@ -720,8 +722,8 @@ async function login() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: loginUsername.value,
-        password: loginPassword.value
+        username,
+        password
       })
     })
     if (!response.ok) {
@@ -737,6 +739,16 @@ async function login() {
   } finally {
     authLoading.value = false
   }
+}
+
+async function login() {
+  await loginWithCredentials(loginUsername.value, loginPassword.value)
+}
+
+async function loginAsGuest() {
+  loginUsername.value = 'guest'
+  loginPassword.value = ''
+  await loginWithCredentials('guest', 'guest')
 }
 
 async function logout() {
@@ -1391,6 +1403,10 @@ onMounted(async () => {
             {{ authLoading ? t('signingIn') : t('signIn') }}
           </button>
         </form>
+
+        <button type="button" class="secondary-button auth-guest-button" :disabled="authLoading" @click="loginAsGuest">
+          {{ authLoading ? t('signingIn') : t('guestSignIn') }}
+        </button>
 
         <p class="auth-hint">{{ t('loginHint') }}</p>
         <p v-if="authError" class="form-error">{{ authError }}</p>
@@ -2210,6 +2226,10 @@ onMounted(async () => {
 .settings-grid {
   display: grid;
   gap: 0.8rem;
+}
+
+.auth-guest-button {
+  width: 100%;
 }
 
 .form-grid {
