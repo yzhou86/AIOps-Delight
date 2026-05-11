@@ -1,20 +1,32 @@
 services:
-  datapilot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: datapilot:latest
-    container_name: datapilot
+  sci-pilot:
+    image: ${DOCKERHUB_USERNAME:-pulsarpioneers}/sci-pilot:${IMAGE_VERSION:-latest}
+    container_name: sci-pilot
     ports:
       - "${PORT:-5005}:5005"
-    env_file:
-      - .env
     environment:
-      PORT: 5005
+      # Unified Flask app
+      PORT: ${PORT:-5005}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-change_me_for_production}
+      # Gunicorn
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
       GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
+      # LLM provider: auto | qwen | openai_compatible
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      # Qwen / DashScope
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_MODEL: ${DASHSCOPE_MODEL:-qwen-turbo}
+      # OpenAI-compatible chat API
+      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
+      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_COMPATIBLE_MODEL: ${OPENAI_COMPATIBLE_MODEL:-gpt-4o-mini}
+      # Baidu Qianfan news search proxy (optional, legacy)
+      QIANFAN_BEARER_TOKEN: ${QIANFAN_BEARER_TOKEN:-}
     volumes:
-      - ./backend/uploads:/app/backend/uploads
-      - ./backend/data:/app/backend/data
+      - scipilot-data:/app/backend/uploads
+      - scipilot-data:/app/backend/data
     restart: unless-stopped
+
+volumes:
+  scipilot-data:

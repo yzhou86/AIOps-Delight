@@ -1,0 +1,391 @@
+name: Build Docker Image
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image version tag"
+        required: false
+        default: ""
+      platforms:
+        description: "Build platforms (amd64 or amd64,arm64)"
+        required: false
+        default: "linux/amd64"
+        
+env:
+  # Docker Hub repository name
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/sci-pilot
+  PROJECT_NAME: ${{ github.event.repository.name }}
+  
+jobs:
+  notify-start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Feishu workflow started message
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SIGN: ${{ secrets.FEISHU_SIGN }}
+          PROJECT_NAME: ${{ github.event.repository.name }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$FEISHU_WEBHOOK" ]; then
+            echo "FEISHU_WEBHOOK is empty, skip notification."
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import hmac
+          import json
+          import os
+          import time
+          import urllib.request
+
+          timestamp = str(int(time.time()))
+          secret = os.environ.get("FEISHU_SIGN", "")
+          payload = {
+              "msg_type": "interactive",
+              "card": {
+                  "config": {"wide_screen_mode": True},
+                  "header": {
+                      "template": "blue",
+                      "title": {"tag": "plain_text", "content": "GitHub Actions started"},
+                  },
+                  "elements": [
+                      {
+                          "tag": "div",
+                          "fields": [
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**{os.environ['PROJECT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**{os.environ['WORKFLOW_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Event:**{os.environ['EVENT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Ref:**{os.environ['REF_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**{os.environ['ACTOR']}"}},
+                          ],
+                      },
+                      {
+                          "tag": "action",
+                          "actions": [
+                              {
+                                  "tag": "button",
+                                  "text": {"tag": "plain_text", "content": "Open run"},
+                                  "type": "primary",
+                                  "url": os.environ["RUN_URL"],
+                              }
+                          ],
+                      },
+                  ],
+              },
+          }
+          if secret:
+              key = f"{timestamp}\n{secret}".encode("utf-8")
+              payload["timestamp"] = timestamp
+              payload["sign"] = base64.b64encode(hmac.new(key, b"", hashlib.sha256).digest()).decode("utf-8")
+
+          data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+          req = urllib.request.Request(
+              os.environ["FEISHU_WEBHOOK"],
+              data=data,
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(resp.read().decode("utf-8"))
+          PY
+          
+  prepare:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      image_version: ${{ steps.vars.outputs.image_version }}
+      build_platforms: ${{ steps.vars.outputs.build_platforms }}
+    steps:
+      - name: Resolve build variables
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.version }}" ]; then
+            IMAGE_VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            IMAGE_VERSION="${GITHUB_REF_NAME}"
+          else
+            IMAGE_VERSION="$(printf '%s' "${GITHUB_SHA}" | cut -c1-7)"
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            BUILD_PLATFORMS="${{ github.event.inputs.platforms || 'linux/amd64' }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            BUILD_PLATFORMS="linux/amd64,linux/arm64"
+          else
+            BUILD_PLATFORMS="linux/amd64"
+          fi
+
+          echo "image_version=${IMAGE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "build_platforms=${BUILD_PLATFORMS}" >> "$GITHUB_OUTPUT"
+  
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: prepare
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_IMAGE }}
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.image_version }}
+            type=ref,event=tag
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+  deploy-production:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: [prepare, docker-build]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Upload production compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          username: ${{ secrets.DEPLOY_USER || 'root' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: docker-compose.yml
+          target: ${{ env.PROJECT_NAME }}
+
+      - name: Deploy to production host over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          username: ${{ secrets.DEPLOY_USER || 'root' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "${{ env.PROJECT_NAME }}"
+
+            cat > .env.ci <<EOF
+            IMAGE_VERSION=${{ needs.prepare.outputs.image_version }}
+            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            EOF
+
+            if [ -f .env ]; then
+              COMPOSE_ENV_ARGS="--env-file .env --env-file .env.ci"
+            else
+              COMPOSE_ENV_ARGS="--env-file .env.ci"
+            fi
+
+            docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
+            docker compose $COMPOSE_ENV_ARGS -f docker-compose.yml pull sci-pilot
+            docker compose $COMPOSE_ENV_ARGS -f docker-compose.yml up -d sci-pilot
+            docker image prune -f
+            
+      - name: Send Feishu deploy success message
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SIGN: ${{ secrets.FEISHU_SIGN }}
+          PROJECT_NAME: ${{ github.event.repository.name }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          IMAGE_VERSION: ${{ needs.prepare.outputs.image_version }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$FEISHU_WEBHOOK" ]; then
+            echo "FEISHU_WEBHOOK is empty, skip notification."
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import hmac
+          import json
+          import os
+          import time
+          import urllib.request
+
+          timestamp = str(int(time.time()))
+          secret = os.environ.get("FEISHU_SIGN", "")
+          payload = {
+              "msg_type": "interactive",
+              "card": {
+                  "config": {"wide_screen_mode": True},
+                  "header": {
+                      "template": "green",
+                      "title": {"tag": "plain_text", "content": "Production deployment succeeded"},
+                  },
+                  "elements": [
+                      {
+                          "tag": "div",
+                          "fields": [
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**{os.environ['PROJECT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**{os.environ['WORKFLOW_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Image version:**{os.environ['IMAGE_VERSION']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**{os.environ['ACTOR']}"}},
+                          ],
+                      },
+                      {
+                          "tag": "action",
+                          "actions": [
+                              {
+                                  "tag": "button",
+                                  "text": {"tag": "plain_text", "content": "Open run"},
+                                  "type": "primary",
+                                  "url": os.environ["RUN_URL"],
+                              }
+                          ],
+                      },
+                  ],
+              },
+          }
+          if secret:
+              key = f"{timestamp}\n{secret}".encode("utf-8")
+              payload["timestamp"] = timestamp
+              payload["sign"] = base64.b64encode(hmac.new(key, b"", hashlib.sha256).digest()).decode("utf-8")
+
+          data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+          req = urllib.request.Request(
+              os.environ["FEISHU_WEBHOOK"],
+              data=data,
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(resp.read().decode("utf-8"))
+          PY
+
+  notify-failure:
+    if: always() && (contains(join(needs.*.result, ','), 'failure') || contains(join(needs.*.result, ','), 'cancelled'))
+    needs: [prepare, docker-build, deploy-production]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Feishu workflow failed message
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SIGN: ${{ secrets.FEISHU_SIGN }}
+          PROJECT_NAME: ${{ github.event.repository.name }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          if [ -z "$FEISHU_WEBHOOK" ]; then
+            echo "FEISHU_WEBHOOK is empty, skip notification."
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import hmac
+          import json
+          import os
+          import time
+          import urllib.request
+
+          needs = json.loads(os.environ.get("NEEDS_JSON", "{}"))
+          failed_jobs = [
+              f"{job}: {data.get('result')}"
+              for job, data in needs.items()
+              if data.get("result") in {"failure", "cancelled"}
+          ]
+          failed_summary = "\n".join(f"- {job}" for job in failed_jobs) or "Unknown"
+
+          timestamp = str(int(time.time()))
+          secret = os.environ.get("FEISHU_SIGN", "")
+          payload = {
+              "msg_type": "interactive",
+              "card": {
+                  "config": {"wide_screen_mode": True},
+                  "header": {
+                      "template": "red",
+                      "title": {"tag": "plain_text", "content": "GitHub Actions failed"},
+                  },
+                  "elements": [
+                      {
+                          "tag": "div",
+                          "fields": [
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**{os.environ['PROJECT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**{os.environ['WORKFLOW_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Event:**{os.environ['EVENT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Ref:**{os.environ['REF_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**{os.environ['ACTOR']}"}},
+                          ],
+                      },
+                      {
+                          "tag": "div",
+                          "text": {"tag": "lark_md", "content": f"**Failed jobs:**\n{failed_summary}"},
+                      },
+                      {
+                          "tag": "action",
+                          "actions": [
+                              {
+                                  "tag": "button",
+                                  "text": {"tag": "plain_text", "content": "Open run"},
+                                  "type": "danger",
+                                  "url": os.environ["RUN_URL"],
+                              }
+                          ],
+                      },
+                  ],
+              },
+          }
+          if secret:
+              key = f"{timestamp}\n{secret}".encode("utf-8")
+              payload["timestamp"] = timestamp
+              payload["sign"] = base64.b64encode(hmac.new(key, b"", hashlib.sha256).digest()).decode("utf-8")
+
+          data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+          req = urllib.request.Request(
+              os.environ["FEISHU_WEBHOOK"],
+              data=data,
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=10) as resp:
+              print(resp.read().decode("utf-8"))
+          PY
