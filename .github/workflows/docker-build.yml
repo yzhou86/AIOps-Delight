@@ -67,11 +67,11 @@ jobs:
                       {
                           "tag": "div",
                           "fields": [
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**\n{os.environ['PROJECT_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**\n{os.environ['WORKFLOW_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Event:**\n{os.environ['EVENT_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Ref:**\n{os.environ['REF_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**\n{os.environ['ACTOR']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**{os.environ['PROJECT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**{os.environ['WORKFLOW_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Event:**{os.environ['EVENT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Ref:**{os.environ['REF_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**{os.environ['ACTOR']}"}},
                           ],
                       },
                       {
@@ -260,10 +260,10 @@ jobs:
                       {
                           "tag": "div",
                           "fields": [
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**\n{os.environ['PROJECT_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**\n{os.environ['WORKFLOW_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Image version:**\n{os.environ['IMAGE_VERSION']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**\n{os.environ['ACTOR']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**{os.environ['PROJECT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**{os.environ['WORKFLOW_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Image version:**{os.environ['IMAGE_VERSION']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**{os.environ['ACTOR']}"}},
                           ],
                       },
                       {
@@ -349,11 +349,11 @@ jobs:
                       {
                           "tag": "div",
                           "fields": [
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**\n{os.environ['PROJECT_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**\n{os.environ['WORKFLOW_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Event:**\n{os.environ['EVENT_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Ref:**\n{os.environ['REF_NAME']}"}},
-                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**\n{os.environ['ACTOR']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Project:**{os.environ['PROJECT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Workflow:**{os.environ['WORKFLOW_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Event:**{os.environ['EVENT_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Ref:**{os.environ['REF_NAME']}"}},
+                              {"is_short": True, "text": {"tag": "lark_md", "content": f"**Actor:**{os.environ['ACTOR']}"}},
                           ],
                       },
                       {
