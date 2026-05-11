@@ -1,10 +1,7 @@
 services:
-  datapilot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: datapilot:latest
-    container_name: datapilot
+  sci-pilot:
+    image: ${DOCKERHUB_USERNAME:-pulsarpioneers}/sci-pilot:${IMAGE_VERSION:-latest}
+    container_name: sci-pilot
     ports:
       - "${PORT:-5005}:5005"
     env_file:
@@ -15,6 +12,9 @@ services:
       GUNICORN_THREADS: ${GUNICORN_THREADS:-4}
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-120}
     volumes:
-      - ./backend/uploads:/app/backend/uploads
-      - ./backend/data:/app/backend/data
+      - scipilot-data:/app/backend/uploads
+      - scipilot-data:/app/backend/data
     restart: unless-stopped
+
+volumes:
+  scipilot-data:
